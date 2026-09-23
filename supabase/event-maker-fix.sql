@@ -33,7 +33,7 @@ where rm.room_id = r.id
   and coalesce(rm.role,'') <> 'owner';
 
 create or replace function public.is_room_member(target_room uuid)
-returns boolean language sql security definer stable set search_path = public
+returns boolean language sql security definer stable set search_path = public, extensions
 as $$
   select exists(
     select 1 from public.room_members rm
@@ -55,7 +55,7 @@ drop function if exists public.create_room(text,text,text);
 create or replace function public.create_room(
   room_name text, room_description text, room_password text
 )
-returns uuid language plpgsql security definer set search_path = public, extensions
+returns uuid language plpgsql security definer set search_path = public, extensions, extensions
 as $$
 declare
   new_room_id uuid;
