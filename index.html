@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EVENT MAKER</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:"Malgun Gothic",Arial,sans-serif;background:#f4f6f9;color:#15171b}
+button,input,textarea{font:inherit}
+button{cursor:pointer}
+.hidden{display:none!important}
+.sidebar{position:fixed;left:0;top:0;width:278px;height:100vh;background:#17191d;border-right:1px solid #292c32;padding:28px 14px;z-index:10}
+.logo{font-size:22px;font-weight:800;padding:0 6px 25px;color:#fff}
+.nav{display:flex;flex-direction:column;gap:5px}
+.nav button{border:0;background:transparent;color:#e5e7eb;text-align:left;font-size:17px;padding:14px 16px;border-radius:10px}
+.nav button:hover{background:#24272d;color:#fff}.nav button.active{background:#2a2f3a;color:#6f8cff}
+.main{margin-left:278px;min-height:100vh;padding:34px 36px 60px}.page{max-width:1550px;margin:auto}
+h1{margin:0 0 26px;font-size:38px}h2{margin:0}p{line-height:1.6}
+.account-box,.stat-card,.quick-card,.room-card,.room-list-card,.calendar-card{background:#fff;border:1px solid #d9dce3;border-radius:16px}
+.account-box{padding:12px 16px;margin-bottom:18px;display:flex;align-items:center;gap:10px;justify-content:space-between}
+.account-left{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.account-left small{color:#777}
+.nickname-input{width:150px;border:1px solid #cfd3da;border-radius:8px;padding:8px 10px}
+.account-box .secondary-btn{padding:8px 13px;font-size:14px}.account-box .status{margin:0;white-space:nowrap}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}.stat-card{padding:28px}
+.stat-card h2{font-size:25px;margin-bottom:28px}.stat-number{font-size:40px;font-weight:700;margin-bottom:7px}.stat-label{font-size:16px;color:#555}
+.quick-card{margin-top:27px;padding:28px}.quick-card h2{font-size:24px;margin-bottom:25px}.quick-buttons{display:flex;gap:10px;flex-wrap:wrap}
+.primary-btn,.secondary-btn,.danger-btn{border-radius:9px;padding:11px 17px;font-size:15px}
+.primary-btn{border:0;background:#315bdc;color:#fff}.primary-btn:hover{background:#284fc8}
+.secondary-btn{border:1px solid #cfd3da;background:#fff;color:#222}.secondary-btn:hover{background:#f5f6f8}
+.danger-btn{border:1px solid #e1bcbc;background:#fff;color:#b33b3b}.danger-btn:hover{background:#fff3f3}
+.room-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}.room-card{padding:27px}
+.room-card h2{font-size:24px;margin-bottom:8px}.room-card-desc{margin:0 0 22px;color:#666;font-size:14px;line-height:1.6}
+.room-card input,.room-card textarea,.login-box input{width:100%;border:1px solid #cfd3da;border-radius:9px;padding:12px 13px;font-size:14px;margin-bottom:11px;outline:none;background:#fff}
+.room-card textarea{height:90px;resize:vertical;font-family:inherit}
+.room-card input:focus,.room-card textarea:focus,.login-box input:focus{border-color:#315bdc;box-shadow:0 0 0 3px rgba(49,91,220,.08)}
+.room-list-card{padding:27px;margin-top:22px}.room-list-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.room-list-header h2{font-size:24px;margin-bottom:6px}.room-list-header p{margin:0;color:#777;font-size:14px}
+.room-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.room-item{border:1px solid #e0e2e7;border-radius:12px;padding:20px;background:#fafbfc;transition:.15s;cursor:pointer}
+.room-item:hover{border-color:#315bdc;box-shadow:0 5px 18px rgba(0,0,0,.06);transform:translateY(-1px)}
+.room-item h3{margin:0 0 7px;font-size:19px}.room-item p{margin:0 0 12px;color:#777;font-size:13px}
+.room-meta{font-size:12px;color:#777}.empty-room{grid-column:1/-1;text-align:center;padding:35px 10px;color:#888;border:1px dashed #d5d8de;border-radius:12px}
+.login-box{max-width:480px;margin:100px auto;background:#fff;border:1px solid #d9dce3;border-radius:16px;padding:30px}
+.login-box h1{font-size:30px;margin-bottom:25px}.login-box input{display:block}
+.tool-card{background:#fff;border:1px solid #d9dce3;border-radius:16px;padding:27px;margin-bottom:22px}
+.tool-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px}.tool-head p{margin:4px 0 0;color:#777;font-size:14px}
+.item-list{margin-top:20px}.data-item{padding:14px;border:1px solid #ddd;border-radius:10px;margin-bottom:9px;background:#fafafa;display:flex;justify-content:space-between;align-items:center;gap:15px}
+.data-main{min-width:0}.data-main strong{display:block;margin-bottom:5px}.data-main span{color:#777;font-size:13px;word-break:break-word}
+.data-actions{display:flex;gap:7px;flex-shrink:0}.data-actions button{padding:8px 11px;font-size:13px}
+.room-title{display:flex;justify-content:space-between;align-items:flex-start;gap:15px;margin-bottom:25px}.room-title h1{margin-bottom:6px}.room-title p{margin:0;color:#666}
+.calendar-card{padding:22px}.calendar-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.calendar-toolbar h2{font-size:22px}.calendar-toolbar button{min-width:42px;height:38px}
+.calendar-table{width:100%;border-collapse:collapse;table-layout:fixed}.calendar-table th{padding:11px;border-bottom:1px solid #dfe2e7;color:#666;font-size:13px}
+.calendar-table td{height:105px;border:1px solid #e2e4e8;vertical-align:top;padding:8px;background:#fff}
+.calendar-table td.other-month{background:#f7f8fa;color:#aaa}.day-number{font-weight:700;font-size:13px;margin-bottom:6px}
+.calendar-event{font-size:12px;background:#edf2ff;color:#315bdc;border-radius:5px;padding:4px 5px;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.back-link{border:0;background:none;padding:0;color:#315bdc;font-size:14px;margin-bottom:15px}
+.room-settings{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.chat-card{max-width:1000px}
+.member-list{display:flex;flex-direction:column;gap:8px}.member-row{display:flex;align-items:center;justify-content:space-between;border:1px solid #e3e5e8;border-radius:9px;padding:10px 12px;background:#fafafa}.member-role{font-size:12px;color:#777}.member-remove{border:1px solid #ddd;background:#fff;border-radius:7px;padding:6px 9px;cursor:pointer}
+.manage-actions{display:flex;gap:8px}.chat-messages{height:500px;overflow-y:auto;border:1px solid #e0e2e7;border-radius:12px;background:#f7f8fa;padding:16px}
+.chat-message{display:flex;flex-direction:column;margin-bottom:13px;max-width:78%}.chat-message.mine{margin-left:auto;align-items:flex-end}
+.chat-author{font-size:12px;color:#777;margin:0 0 4px 5px}.chat-bubble{background:#fff;border:1px solid #e0e2e7;border-radius:12px;padding:10px 13px;word-break:break-word;line-height:1.5}
+.chat-message.mine .chat-bubble{background:#edf2ff;border-color:#d7e0ff}.chat-time{font-size:11px;color:#aaa;margin:4px 5px 0}
+.chat-input-row{display:flex;gap:9px;margin-top:12px}.chat-input-row input{flex:1;border:1px solid #cfd3da;border-radius:9px;padding:12px 13px}
+@media(max-width:900px){.chat-input-row{flex-direction:column}.chat-message{max-width:90%}}
+.status{font-size:13px;margin:10px 0;color:#666}.status.error{color:#b33b3b}.status.ok{color:#287a46}
+.login-message{color:#b33b3b;font-size:14px;margin-top:15px}
+@media(max-width:900px){.sidebar{position:static;width:100%;height:auto}.main{margin-left:0}.stats,.room-grid,.room-list,.room-settings{grid-template-columns:1fr}.account-box{align-items:flex-start;flex-direction:column}.calendar-table td{height:80px}}
+</style>
+</head>
+<body>
+<div id="loginScreen" class="login-box">
+<h1>EVENT MAKER</h1>
+<input id="email" type="email" placeholder="이메일">
+<input id="password" type="password" placeholder="비밀번호">
+<div style="display:flex;gap:8px"><button class="primary-btn" onclick="login()">로그인</button><button class="secondary-btn" onclick="signup()">회원가입</button></div>
+<p id="loginMessage" class="login-message"></p>
+</div>
+
+<div id="app" class="hidden">
+<aside class="sidebar">
+<div class="logo">EVENT MAKER</div>
+<nav class="nav">
+<button id="navHome" class="active" onclick="showPage('home')">홈</button>
+<button id="navNotes" onclick="showPage('notes')">메모</button>
+<button id="navCalendar" onclick="showPage('calendar')">달력</button>
+<button id="navFiles" onclick="showPage('files')">자료 공유</button>
+<button id="navChat" onclick="showPage('chat')">채팅</button>
+<button id="navRooms" onclick="showPage('rooms')">내 방</button>
+<button id="navRoomAdmin" class="hidden" onclick="showPage('rooms');openRoomManagement()">관리자 설정</button>
+</nav>
+</aside>
+
+<main class="main">
+<div class="account-box">
+<div class="account-left">
+<strong id="accountEmail"></strong>
+<small>닉네임</small>
+<input id="nicknameInput" class="nickname-input" placeholder="닉네임 입력" maxlength="30">
+<button class="secondary-btn" onclick="saveNickname()">닉네임 저장</button>
+<span id="nicknameStatus" class="status"></span>
+</div>
+<button class="secondary-btn" onclick="logout()">로그아웃</button>
+</div>
+
+<section id="homePage" class="page">
+<h1>행사 준비방</h1>
+<div class="stats">
+<div class="stat-card"><h2>메모</h2><div id="memoCount" class="stat-number">0</div><div class="stat-label">등록된 준비사항</div></div>
+<div class="stat-card"><h2>일정</h2><div id="eventCount" class="stat-number">0</div><div class="stat-label">등록된 행사 일정</div></div>
+<div class="stat-card"><h2>자료</h2><div id="fileCount" class="stat-number">0</div><div class="stat-label">공유 자료</div></div>
+</div>
+<div class="quick-card"><h2>빠른 작업</h2><div class="quick-buttons">
+<button class="primary-btn" onclick="showPage('notes')">메모 추가</button>
+<button class="secondary-btn" onclick="showPage('calendar')">일정 추가</button>
+<button class="secondary-btn" onclick="showPage('files')">자료 추가</button>
+<button class="secondary-btn" onclick="showPage('rooms')">방 관리</button>
+</div></div>
+</section>
+
+<section id="chatPage" class="page hidden">
+<h1>채팅</h1>
+<div class="tool-card chat-card">
+  <div class="tool-head"><div><h2 id="chatRoomTitle">방을 먼저 선택하세요.</h2><p>현재 선택한 행사 준비방의 채팅입니다.</p></div></div>
+  <div id="chatMessages" class="chat-messages"><div class="empty-room">방을 먼저 선택하세요.</div></div>
+  <div class="chat-input-row">
+    <input id="chatInput" placeholder="메시지를 입력하세요" maxlength="1000" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatMessage()}">
+    <button class="primary-btn" onclick="sendChatMessage()">보내기</button>
+  </div>
+  <p id="chatStatus" class="status"></p>
+</div>
+</section>
+
+<section id="roomsPage" class="page hidden">
+<h1>내 방</h1>
+<div class="room-grid">
+<div class="room-card"><h2>새 방 만들기</h2><p class="room-card-desc">새로운 행사 준비방을 만들고 친구들을 초대하세요.</p>
+<input id="roomName" placeholder="방 이름"><textarea id="roomDescription" placeholder="방 설명"></textarea><input id="roomPassword" type="password" placeholder="방 비밀번호">
+<button class="primary-btn" onclick="createRoom()">방 만들기</button><p id="roomCreateStatus" class="status"></p></div>
+<div class="room-card"><h2>방 참여</h2><p class="room-card-desc">초대받은 방의 ID와 비밀번호를 입력하세요.</p>
+<input id="joinRoomId" placeholder="방 이름"><input id="joinRoomPassword" type="password" placeholder="방 비밀번호"><button class="primary-btn" onclick="joinRoom()">방 참여</button>
+<p id="roomJoinStatus" class="status"></p></div>
+</div>
+<div class="room-list-card"><div class="room-list-header"><div><h2>내 방</h2><p>방 상자를 클릭하면 해당 방으로 들어갑니다.</p></div><button class="secondary-btn" onclick="loadRooms()">새로고침</button></div>
+<div id="roomList" class="room-list"></div></div>
+<div id="roomManagePanel" class="tool-card hidden" style="margin-top:18px">
+<h2>방 관리</h2>
+<p>방 관리자만 방의 이름, 설명, 아이콘과 구성원을 관리할 수 있습니다.</p>
+<div class="room-settings">
+<label>방 이름<input id="manageRoomName"></label>
+<label>방 설명<input id="manageRoomDescription"></label>
+</div>
+<div style="margin-top:14px">
+<label>방 아이콘 <input id="manageRoomIcon" type="file" accept="image/*"></label>
+</div>
+<div class="manage-actions" style="margin-top:14px">
+<button class="primary-btn" onclick="saveRoomSettings()">변경 저장</button>
+</div>
+<h3 style="margin-top:22px">구성원</h3>
+<div id="roomMembersList" class="member-list"></div>
+<p id="roomManageStatus" class="status"></p>
+</div></section>
+
+<section id="roomPage" class="page hidden">
+<button class="back-link" onclick="showPage('rooms')">← 내 방 목록으로</button>
+<div class="room-title"><div><h1 id="currentRoomName">방</h1><p id="currentRoomDescription"></p></div></div>
+<div class="stats">
+<div class="stat-card"><h2>메모</h2><div id="roomMemoCount" class="stat-number">0</div><div class="stat-label">이 방의 메모</div></div>
+<div class="stat-card"><h2>일정</h2><div id="roomEventCount" class="stat-number">0</div><div class="stat-label">이 방의 일정</div></div>
+<div class="stat-card"><h2>자료</h2><div id="roomFileCount" class="stat-number">0</div><div class="stat-label">이 방의 자료</div></div>
+</div>
+<div class="quick-card"><h2>방에서 바로가기</h2><div class="quick-buttons">
+<button class="primary-btn" onclick="showPage('notes')">메모</button><button class="secondary-btn" onclick="showPage('calendar')">달력</button><button class="secondary-btn" onclick="showPage('files')">자료 공유</button>
+</div></div>
+</section>
+
+<section id="notesPage" class="page hidden">
+<h1>메모</h1><div class="tool-card"><div class="tool-head"><div><h2>준비 메모</h2><p id="notesRoomLabel">방을 먼저 선택하세요.</p></div></div>
+<input id="noteInput" style="width:100%;border:1px solid #cfd3da;border-radius:9px;padding:12px 13px;margin-bottom:10px" placeholder="메모 내용을 입력하세요">
+<button class="primary-btn" onclick="addNote()">메모 추가</button><div id="notesList" class="item-list"></div></div>
+</section>
+
+<section id="calendarPage" class="page hidden">
+<h1>달력</h1>
+<div class="tool-card"><div class="tool-head"><div><h2>일정 추가</h2><p id="calendarRoomLabel">방을 먼저 선택하세요.</p></div></div>
+<div style="display:flex;gap:10px;flex-wrap:wrap"><input id="eventTitle" placeholder="일정 제목" style="flex:2;min-width:180px;border:1px solid #cfd3da;border-radius:9px;padding:12px">
+<input id="eventDate" type="date" style="flex:1;min-width:150px;border:1px solid #cfd3da;border-radius:9px;padding:12px"><button class="primary-btn" onclick="addEvent()">일정 추가</button></div>
+</div>
+<div class="calendar-card"><div class="calendar-toolbar"><button class="secondary-btn" onclick="changeMonth(-1)">이전</button><h2 id="calendarMonth"></h2><button class="secondary-btn" onclick="changeMonth(1)">다음</button></div>
+<table class="calendar-table"><thead><tr><th>일</th><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th><th>토</th></tr></thead><tbody id="calendarBody"></tbody></table></div>
+</section>
+
+<section id="filesPage" class="page hidden">
+<h1>자료 공유</h1><div class="tool-card"><div class="tool-head"><div><h2>자료</h2><p id="filesRoomLabel">방을 먼저 선택하세요.</p></div></div>
+<input id="fileInput" type="file"><button class="primary-btn" onclick="uploadFile()">자료 추가</button><p class="status">현재 브라우저에 저장되는 자료입니다. 다운로드와 삭제가 가능합니다.</p>
+<div id="filesList" class="item-list"></div></div>
+</section>
+</main></div>
+
+<script>
+const SUPABASE_URL="https://qugdtljqifagaanrelxq.supabase.co";
+const SUPABASE_KEY="sb_publishable_K1mj11BXsdVYBWroata6cg_g9WKcfL4";
+const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let currentUser=null,currentRoom=null,calendarCursor=new Date();
+
+function el(id){return document.getElementById(id)}
+function escapeHtml(v){return String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
+function storageKey(type){return "event-maker:"+currentUser.id+":"+type+":"+(currentRoom?.id||"none")}
+function readData(type){try{return JSON.parse(localStorage.getItem(storageKey(type))||"[]")}catch{return[]}}
+function writeData(type,data){localStorage.setItem(storageKey(type),JSON.stringify(data))}
+
+async function login(){
+ const email=el("email").value.trim(),password=el("password").value;
+ const {data,error}=await supabaseClient.auth.signInWithPassword({email,password});
+ if(error){el("loginMessage").textContent=error.message;return}
+ currentUser=data.user;openApp();
+}
+async function signup(){
+ const email=el("email").value.trim(),password=el("password").value;
+ if(!email||!password){el("loginMessage").textContent="이메일과 비밀번호를 입력해주세요.";return}
+ const {error}=await supabaseClient.auth.signUp({email,password});
+ el("loginMessage").textContent=error?"회원가입 실패: "+error.message:"회원가입이 완료되었습니다. 이메일 인증이 필요한 경우 메일을 확인해주세요.";
+}
+async function logout(){await supabaseClient.auth.signOut();currentUser=null;currentRoom=null;el("app").classList.add("hidden");el("loginScreen").classList.remove("hidden")}
+async function checkSession(){const {data}=await supabaseClient.auth.getSession();if(data.session){currentUser=data.session.user;openApp()}}
+function openApp(){
+ el("loginScreen").classList.add("hidden");el("app").classList.remove("hidden");el("accountEmail").textContent=currentUser.email;
+ el("nicknameInput").value=currentUser.user_metadata?.nickname||"";showPage("home");loadRooms();
+}
+async function saveNickname(){
+ const nickname=el("nicknameInput").value.trim();
+ const {data,error}=await supabaseClient.auth.updateUser({data:{nickname}});
+ const s=el("nicknameStatus");
+ if(error){s.className="status error";s.textContent="저장 실패: "+error.message;return}
+ currentUser=data.user;s.className="status ok";s.textContent="저장되었습니다.";
+}
+function showPage(page){
+ const pages=["home","rooms","room","notes","calendar","files","chat"];
+ pages.forEach(p=>el(p+"Page").classList.add("hidden"));
+ el(page+"Page").classList.remove("hidden");
+ document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));
+ const nav={home:"navHome",rooms:"navRooms",notes:"navNotes",calendar:"navCalendar",files:"navFiles",chat:"navChat"}[page];
+ if(nav)el(nav).classList.add("active");
+ if(page==="notes")renderNotes();
+ if(page==="calendar")renderCalendar();
+ if(page==="files")renderFiles();
+ if(page==="chat")loadChatMessages();
+ if(page==="rooms"){loadRooms(); if(currentRoom)openRoomManagement();}
+ if(page==="room")refreshRoomStats();
+}
+function setStatus(id,msg,error=false){const s=el(id);s.className="status "+(error?"error":"ok");s.textContent=msg}
+
+async function createRoom(){
+ const name=el("roomName").value.trim(),description=el("roomDescription").value.trim(),password=el("roomPassword").value;
+ if(!name||!password){setStatus("roomCreateStatus","방 이름과 비밀번호를 입력해주세요.",true);return}
+ setStatus("roomCreateStatus","방을 만드는 중...");
+ const {data,error}=await supabaseClient.rpc("create_room",{room_name:name,room_description:description,room_password:password});
+ if(error){setStatus("roomCreateStatus","실패: "+error.message,true);return}
+ setStatus("roomCreateStatus","방이 만들어졌습니다.");
+ el("roomName").value="";el("roomDescription").value="";el("roomPassword").value="";
+ await loadRooms();
+ if(data)enterRoom(data);
+}
+async function joinRoom(){
+ const roomName=el("joinRoomId").value.trim(),password=el("joinRoomPassword").value;
+ if(!roomName||!password){setStatus("roomJoinStatus","방 이름과 비밀번호를 입력해주세요.",true);return}
+ setStatus("roomJoinStatus","방에 참여하는 중...");
+ const {data,error}=await supabaseClient.rpc("join_room_by_name",{target_room_name:roomName,room_password:password});
+ if(error){setStatus("roomJoinStatus","실패: "+error.message,true);return}
+ if(!data){setStatus("roomJoinStatus","방 ID 또는 비밀번호가 올바르지 않습니다.",true);return}
+ el("joinRoomId").value="";el("joinRoomPassword").value="";setStatus("roomJoinStatus","방에 참여했습니다.");await loadRooms();if(data)enterRoom(data);
+}
+async function loadRooms(){
+ const {data,error}=await supabaseClient.from("room_members").select("room_id,role,rooms(id,name,description)");
+ if(error){el("roomList").innerHTML='<div class="empty-room">방 목록을 불러오지 못했습니다.<br>'+escapeHtml(error.message)+'</div>';return}
+ const rows=(data||[]).filter(x=>x.rooms && x.rooms.name !== "Wchat 커뮤니티센터");
+ if(!rows.length){el("roomList").innerHTML='<div class="empty-room">참여한 방이 없습니다.</div>';return}
+ el("roomList").innerHTML=rows.map(x=>'<div class="room-item" onclick="enterRoom(\''+escapeHtml(x.rooms.id)+'\')"><h3>'+escapeHtml(x.rooms.name)+'</h3><p>'+escapeHtml(x.rooms.description||"설명이 없습니다.")+'</p><div class="room-meta">클릭해서 방으로 들어가기 · 방 ID: '+escapeHtml(x.rooms.id)+'</div></div>').join("");
+}
+async function enterRoom(id){
+ const {data,error}=await supabaseClient.from("rooms").select("id,name,description").eq("id",id).single();
+ if(error||!data){alert("방 정보를 불러오지 못했습니다.");return}
+ currentRoom=data;localStorage.setItem("event-maker:last-room:"+currentUser.id,id);
+ updateAdminNav();
+ el("currentRoomName").textContent=data.name;el("currentRoomDescription").textContent=data.description||"설명이 없습니다.";
+ el("notesRoomLabel").textContent=data.name;el("calendarRoomLabel").textContent=data.name;el("filesRoomLabel").textContent=data.name;el("chatRoomTitle").textContent=data.name+" 채팅";
+ refreshRoomStats();showPage("room");
+}
+function updateAdminNav(){
+ const admin=!!(currentUser&&currentRoom&&currentRoom.created_by===currentUser.id);
+ el("navRoomAdmin").classList.toggle("hidden",!admin);
+}
+function refreshRoomStats(){
+ if(!currentRoom)return;
+ el("roomMemoCount").textContent=readData("notes").length;
+ el("roomEventCount").textContent=readData("events").length;
+ el("roomFileCount").textContent=readData("files").length;
+ el("memoCount").textContent=readData("notes").length;
+ el("eventCount").textContent=readData("events").length;
+ el("fileCount").textContent=readData("files").length;
+}
+function requireRoom(){if(!currentRoom){alert("먼저 방 관리에서 내 방을 클릭해 주세요.");showPage("rooms");return false}return true}
+
+function addNote(){
+ if(!requireRoom())return;
+ const text=el("noteInput").value.trim();if(!text)return;
+ const arr=readData("notes");arr.unshift({id:crypto.randomUUID(),text,createdAt:new Date().toISOString()});writeData("notes",arr);el("noteInput").value="";renderNotes();refreshRoomStats();
+}
+function deleteNote(id){if(!requireRoom())return;writeData("notes",readData("notes").filter(x=>x.id!==id));renderNotes();refreshRoomStats()}
+function renderNotes(){
+ if(!currentRoom){el("notesList").innerHTML='<div class="empty-room">방을 먼저 선택하세요.</div>';return}
+ const arr=readData("notes");
+ el("notesList").innerHTML=arr.length?arr.map(x=>'<div class="data-item"><div class="data-main"><strong>'+escapeHtml(x.text)+'</strong><span>'+new Date(x.createdAt).toLocaleString("ko-KR")+'</span></div><div class="data-actions"><button class="danger-btn" onclick="deleteNote(\''+x.id+'\')">삭제</button></div></div>').join(""):'<div class="empty-room">작성한 메모가 없습니다.</div>';
+}
+
+function addEvent(){
+ if(!requireRoom())return;
+ const title=el("eventTitle").value.trim(),date=el("eventDate").value;if(!title||!date){alert("일정 제목과 날짜를 입력해주세요.");return}
+ const arr=readData("events");arr.push({id:crypto.randomUUID(),title,date});writeData("events",arr);el("eventTitle").value="";el("eventDate").value="";renderCalendar();refreshRoomStats();
+}
+function deleteEvent(id){if(!requireRoom())return;writeData("events",readData("events").filter(x=>x.id!==id));renderCalendar();refreshRoomStats()}
+function changeMonth(n){calendarCursor.setMonth(calendarCursor.getMonth()+n);renderCalendar()}
+function renderCalendar(){
+ if(!currentRoom){el("calendarMonth").textContent="방을 먼저 선택하세요.";el("calendarBody").innerHTML="";return}
+ const y=calendarCursor.getFullYear(),m=calendarCursor.getMonth(),first=new Date(y,m,1),last=new Date(y,m+1,0);
+ el("calendarMonth").textContent=y+"년 "+(m+1)+"월";
+ const events=readData("events"),start=new Date(y,m,1-first.getDay()),end=new Date(y,m,last.getDate()+(6-last.getDay())),rows=[];
+ for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)){
+   if(d.getDay()===0)rows.push([]);
+   const cell=rows[rows.length-1],iso=d.toISOString().slice(0,10),list=events.filter(e=>e.date===iso);
+   cell.push({day:d.getDate(),other:d.getMonth()!==m,events:list});
+ }
+ el("calendarBody").innerHTML=rows.map(week=>"<tr>"+week.map(c=>'<td class="'+(c.other?"other-month":"")+'"><div class="day-number">'+c.day+'</div>'+c.events.map(e=>'<div class="calendar-event" title="'+escapeHtml(e.title)+'">'+escapeHtml(e.title)+'</div>').join("")+"</td>").join("")+"</tr>").join("");
+}
+function uploadFile(){
+ if(!requireRoom())return;
+ const f=el("fileInput").files[0];if(!f){alert("파일을 선택해주세요.");return}
+ if(f.size>4*1024*1024){alert("브라우저 저장 한도 때문에 4MB 이하 파일을 선택해주세요.");return}
+ const reader=new FileReader();
+ reader.onload=()=>{
+  const arr=readData("files");arr.unshift({id:crypto.randomUUID(),name:f.name,size:f.size,type:f.type,data:reader.result,createdAt:new Date().toISOString()});
+  try{writeData("files",arr)}catch{alert("저장 공간이 부족합니다. 기존 자료를 삭제한 뒤 다시 시도해주세요.");return}
+  el("fileInput").value="";renderFiles();refreshRoomStats();
+ };
+ reader.readAsDataURL(f);
+}
+function downloadFile(id){
+ const f=readData("files").find(x=>x.id===id);if(!f)return;
+ const a=document.createElement("a");a.href=f.data;a.download=f.name;document.body.appendChild(a);a.click();a.remove();
+}
+function deleteFile(id){if(!requireRoom())return;writeData("files",readData("files").filter(x=>x.id!==id));renderFiles();refreshRoomStats()}
+function renderFiles(){
+ if(!currentRoom){el("filesList").innerHTML='<div class="empty-room">방을 먼저 선택하세요.</div>';return}
+ const arr=readData("files");
+ el("filesList").innerHTML=arr.length?arr.map(x=>'<div class="data-item"><div class="data-main"><strong>'+escapeHtml(x.name)+'</strong><span>'+formatBytes(x.size)+' · '+new Date(x.createdAt).toLocaleString("ko-KR")+'</span></div><div class="data-actions"><button class="secondary-btn" onclick="downloadFile(\''+x.id+'\')">다운로드</button><button class="danger-btn" onclick="deleteFile(\''+x.id+'\')">삭제</button></div></div>').join(""):'<div class="empty-room">공유한 자료가 없습니다.</div>';
+}
+function formatBytes(n){if(n<1024)return n+" B";if(n<1024*1024)return (n/1024).toFixed(1)+" KB";return (n/1024/1024).toFixed(1)+" MB"}
+
+
+let chatChannel=null;
+async function loadChatMessages(){
+ if(!currentRoom){el("chatMessages").innerHTML='<div class="empty-room">방을 먼저 선택하세요.</div>';return}
+ el("chatRoomTitle").textContent=currentRoom.name+" 채팅";
+ const {data,error}=await supabaseClient.from("chat_messages").select("id,user_id,nickname,message,created_at").eq("room_id",currentRoom.id).order("created_at",{ascending:true}).limit(200);
+ if(error){el("chatMessages").innerHTML='<div class="empty-room">채팅을 불러오지 못했습니다.<br>'+escapeHtml(error.message)+'</div>';return}
+ renderChatMessages(data||[]);
+ subscribeChat();
+}
+function renderChatMessages(rows){
+ const box=el("chatMessages");
+ if(!rows.length){box.innerHTML='<div class="empty-room">아직 채팅이 없습니다. 첫 메시지를 보내보세요!</div>';return}
+ box.innerHTML=rows.map(m=>'<div class="chat-message '+(m.user_id===currentUser.id?'mine':'')+'"><div class="chat-author">'+escapeHtml(m.nickname||"사용자")+'</div><div class="chat-bubble">'+escapeHtml(m.message).replace(/\n/g,"<br>")+'</div><div class="chat-time">'+new Date(m.created_at).toLocaleString("ko-KR")+'</div></div>').join("");
+ box.scrollTop=box.scrollHeight;
+}
+function subscribeChat(){
+ if(chatChannel) supabaseClient.removeChannel(chatChannel);
+ if(!currentRoom)return;
+ chatChannel=supabaseClient.channel("chat-"+currentRoom.id).on("postgres_changes",{event:"INSERT",schema:"public",table:"chat_messages",filter:"room_id=eq."+currentRoom.id},payload=>{
+   const box=el("chatMessages");
+   const m=payload.new;
+   const empty=box.querySelector(".empty-room");if(empty)empty.remove();
+   box.insertAdjacentHTML("beforeend",'<div class="chat-message '+(m.user_id===currentUser.id?'mine':'')+'"><div class="chat-author">'+escapeHtml(m.nickname||"사용자")+'</div><div class="chat-bubble">'+escapeHtml(m.message).replace(/\n/g,"<br>")+'</div><div class="chat-time">'+new Date(m.created_at).toLocaleString("ko-KR")+'</div></div>');
+   box.scrollTop=box.scrollHeight;
+ }).subscribe();
+}
+async function sendChatMessage(){
+ if(!requireRoom())return;
+ const input=el("chatInput"),message=input.value.trim();if(!message)return;
+ const nickname=(currentUser.user_metadata?.nickname||currentUser.email?.split("@")[0]||"사용자").slice(0,30);
+ const {error}=await supabaseClient.from("chat_messages").insert({room_id:currentRoom.id,user_id:currentUser.id,nickname,message});
+ if(error){setStatus("chatStatus","전송 실패: "+error.message,true);return}
+ input.value="";setStatus("chatStatus","",false);
+}
+
+
+async function openRoomManagement(){
+ if(!currentRoom)return;
+ updateAdminNav();
+ updateAdminNav();
+ const {data:members,error}=await supabaseClient.from("room_members").select("user_id,role,joined_at").eq("room_id",currentRoom.id).order("joined_at",{ascending:true});
+ const isOwner=currentRoom.created_by===currentUser.id;
+ el("roomManagePanel").classList.toggle("hidden",!isOwner);
+ if(!isOwner){setStatus("roomManageStatus","방 관리자만 관리할 수 있습니다.",true);return}
+ el("manageRoomName").value=currentRoom.name||"";
+ el("manageRoomDescription").value=currentRoom.description||"";
+ const list=el("roomMembersList");
+ if(error){list.innerHTML='<div>'+escapeHtml(error.message)+'</div>';return}
+ list.innerHTML=(members||[]).map(m=>'<div class="member-row"><span>'+escapeHtml(m.user_id)+'</span><span class="member-role">'+(m.role==="owner"?"관리자":"구성원")+'</span>'+(m.role==="owner"?'':('<button class="member-remove" onclick="removeRoomMember(\''+m.user_id+'\')">내보내기</button>'))+'</div>').join("")||"<div>구성원이 없습니다.</div>";
+}
+async function saveRoomSettings(){
+ if(!currentRoom)return;
+ const name=el("manageRoomName").value.trim(),description=el("manageRoomDescription").value.trim();
+ if(!name){setStatus("roomManageStatus","방 이름을 입력해주세요.",true);return}
+ const {error}=await supabaseClient.from("rooms").update({name,description}).eq("id",currentRoom.id);
+ if(error){setStatus("roomManageStatus","저장 실패: "+error.message,true);return}
+ const file=el("manageRoomIcon").files[0];
+ if(file){
+   const path=currentRoom.id+"/icon-"+Date.now()+"-"+file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
+   const up=await supabaseClient.storage.from("room-icons").upload(path,file,{upsert:true});
+   if(up.error){setStatus("roomManageStatus","아이콘 업로드 실패: "+up.error.message,true);return}
+   const pub=supabaseClient.storage.from("room-icons").getPublicUrl(path);
+   await supabaseClient.from("rooms").update({icon_url:pub.data.publicUrl}).eq("id",currentRoom.id);
+ }
+ currentRoom={...currentRoom,name,description};
+ await loadRooms(); openRoomManagement(); setStatus("roomManageStatus","저장되었습니다.");
+}
+async function removeRoomMember(userId){
+ if(!currentRoom||currentRoom.created_by!==currentUser.id)return;
+ if(!confirm("이 구성원을 방에서 내보낼까요?"))return;
+ const {error}=await supabaseClient.from("room_members").delete().eq("room_id",currentRoom.id).eq("user_id",userId);
+ if(error){setStatus("roomManageStatus","구성원 삭제 실패: "+error.message,true);return}
+ openRoomManagement();
+}
+
+checkSession();
+</script>
+</body>
+</html>
