@@ -49,7 +49,7 @@ h1{margin:0 0 26px;font-size:38px}h2{margin:0}p{line-height:1.6}
 .item-list{margin-top:20px}.data-item{padding:14px;border:1px solid #ddd;border-radius:10px;margin-bottom:9px;background:#fafafa;display:flex;justify-content:space-between;align-items:center;gap:15px}
 .data-main{min-width:0}.data-main strong{display:block;margin-bottom:5px}.data-main span{color:#777;font-size:13px;word-break:break-word}
 .data-actions{display:flex;gap:7px;flex-shrink:0}.data-actions button{padding:8px 11px;font-size:13px}
-.room-title{display:flex;justify-content:space-between;align-items:flex-start;gap:15px;margin-bottom:25px}.room-title h1{margin-bottom:6px}.room-title p{margin:0;color:#666}
+.room-title{display:flex;justify-content:space-between;align-items:flex-start;gap:15px;margin-bottom:25px}.room-title h1{margin-bottom:6px}.room-title p{margin:0;color:#666}.room-title-main{display:flex;align-items:center;gap:12px;min-width:0}.room-icon{width:52px;height:52px;border-radius:12px;object-fit:cover;border:1px solid #d9dce3;background:#f1f3f6;flex-shrink:0}.room-list-icon{width:42px;height:42px;border-radius:10px;object-fit:cover;border:1px solid #d9dce3;background:#f1f3f6;flex-shrink:0}.room-item-head{display:flex;align-items:center;gap:11px;padding-right:35px}.room-item-head h3{margin:0}
 .calendar-card{padding:22px}.calendar-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
 .calendar-toolbar h2{font-size:22px}.calendar-toolbar button{min-width:42px;height:38px}
 .calendar-table{width:100%;border-collapse:collapse;table-layout:fixed}.calendar-table th{padding:11px;border-bottom:1px solid #dfe2e7;color:#666;font-size:13px}
@@ -242,7 +242,7 @@ h1{margin:0 0 26px;font-size:38px}h2{margin:0}p{line-height:1.6}
 
 <section id="roomPage" class="page hidden">
 <button class="back-link" onclick="showPage('rooms')">← 내 방 목록으로</button>
-<div class="room-title"><div><h1 id="currentRoomName">방</h1><p id="currentRoomDescription"></p></div></div>
+<div class="room-title"><div class="room-title-main"><img id="currentRoomIcon" class="room-icon" src="" alt="방 아이콘"><div><h1 id="currentRoomName">방</h1><p id="currentRoomDescription"></p></div></div></div>
 <div class="stats">
 <div class="stat-card"><h2>메모</h2><div id="roomMemoCount" class="stat-number">0</div><div class="stat-label">이 방의 메모</div></div>
 <div class="stat-card"><h2>일정</h2><div id="roomEventCount" class="stat-number">0</div><div class="stat-label">이 방의 일정</div></div>
@@ -350,11 +350,11 @@ async function joinRoom(){
  el("joinRoomId").value="";el("joinRoomPassword").value="";setStatus("roomJoinStatus","방에 참여했습니다.");await loadRooms();if(data)enterRoom(data);
 }
 async function loadRooms(){
- const {data,error}=await supabaseClient.from("room_members").select("room_id,role,rooms(id,name,description)");
+ const {data,error}=await supabaseClient.from("room_members").select("room_id,role,rooms(id,name,description,icon_url)");
  if(error){el("roomList").innerHTML='<div class="empty-room">방 목록을 불러오지 못했습니다.<br>'+escapeHtml(error.message)+'</div>';return}
  const rows=(data||[]).filter(x=>x.rooms && x.rooms.name !== "Wchat 커뮤니티센터");
  if(!rows.length){el("roomList").innerHTML='<div class="empty-room">참여한 방이 없습니다.</div>';return}
- el("roomList").innerHTML=rows.map(x=>'<div class="room-item" onclick="enterRoom(\''+escapeHtml(x.rooms.id)+'\')"><button class="room-menu-btn" title="메뉴" onclick="event.stopPropagation();toggleRoomMenu(\''+escapeHtml(x.rooms.id)+'\')">⋯</button><div id="room-menu-'+escapeHtml(x.rooms.id)+'" class="room-menu hidden" onclick="event.stopPropagation()"><button onclick="deleteRoom(\''+escapeHtml(x.rooms.id)+'\')">방 삭제</button></div><h3>'+escapeHtml(x.rooms.name)+'</h3><p>'+escapeHtml(x.rooms.description||"설명이 없습니다.")+'</p><div class="room-meta">클릭해서 방으로 들어가기 · 방 ID: '+escapeHtml(x.rooms.id)+'</div></div>').join("");
+ el("roomList").innerHTML=rows.map(x=>'<div class="room-item" onclick="enterRoom(\''+escapeHtml(x.rooms.id)+'\')"><button class="room-menu-btn" title="메뉴" onclick="event.stopPropagation();toggleRoomMenu(\''+escapeHtml(x.rooms.id)+'\')">⋯</button><div id="room-menu-'+escapeHtml(x.rooms.id)+'" class="room-menu hidden" onclick="event.stopPropagation()"><button onclick="deleteRoom(\''+escapeHtml(x.rooms.id)+'\')">방 삭제</button></div><div class="room-item-head"><img class="room-list-icon" src="'+escapeHtml(x.rooms.icon_url||"")'" alt="방 아이콘" onerror="this.style.display=\'none\'"><h3>'+escapeHtml(x.rooms.name)+'</h3></div><p>'+escapeHtml(x.rooms.description||"설명이 없습니다.")+'</p><div class="room-meta">클릭해서 방으로 들어가기 · 방 ID: '+escapeHtml(x.rooms.id)+'</div></div>').join("");
 }
 function toggleRoomMenu(id){
  document.querySelectorAll(".room-menu").forEach(m=>m.classList.add("hidden"));
@@ -378,7 +378,7 @@ async function enterRoom(id){
  if(error||!data){alert("방 정보를 불러오지 못했습니다.");return}
  currentRoom=data;localStorage.setItem("event-maker:last-room:"+currentUser.id,id);
  updateAdminNav();
- el("currentRoomName").textContent=data.name;el("currentRoomDescription").textContent=data.description||"설명이 없습니다.";
+ el("currentRoomName").textContent=data.name;el("currentRoomDescription").textContent=data.description||"설명이 없습니다.";const roomIcon=el("currentRoomIcon");roomIcon.src=data.icon_url||"";roomIcon.style.display=data.icon_url?"block":"none";
  el("notesRoomLabel").textContent=data.name;el("calendarRoomLabel").textContent=data.name;el("filesRoomLabel").textContent=data.name;el("chatRoomTitle").textContent=data.name+" 채팅";
  refreshRoomStats();showPage("room");
 }
