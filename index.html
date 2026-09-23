@@ -118,7 +118,7 @@ h1{margin:0 0 26px;font-size:38px}h2{margin:0}p{line-height:1.6}
 <input id="roomName" placeholder="방 이름"><textarea id="roomDescription" placeholder="방 설명"></textarea><input id="roomPassword" type="password" placeholder="방 비밀번호">
 <button class="primary-btn" onclick="createRoom()">방 만들기</button><p id="roomCreateStatus" class="status"></p></div>
 <div class="room-card"><h2>방 참여</h2><p class="room-card-desc">초대받은 방의 ID와 비밀번호를 입력하세요.</p>
-<input id="joinRoomId" placeholder="방 ID"><input id="joinRoomPassword" type="password" placeholder="방 비밀번호"><button class="primary-btn" onclick="joinRoom()">방 참여</button>
+<input id="joinRoomId" placeholder="방 이름"><input id="joinRoomPassword" type="password" placeholder="방 비밀번호"><button class="primary-btn" onclick="joinRoom()">방 참여</button>
 <p id="roomJoinStatus" class="status"></p></div>
 </div>
 <div class="room-list-card"><div class="room-list-header"><div><h2>내 방</h2><p>방 상자를 클릭하면 해당 방으로 들어갑니다.</p></div><button class="secondary-btn" onclick="loadRooms()">새로고침</button></div>
@@ -224,13 +224,13 @@ async function createRoom(){
  if(data)enterRoom(data);
 }
 async function joinRoom(){
- const id=el("joinRoomId").value.trim(),password=el("joinRoomPassword").value;
- if(!id||!password){setStatus("roomJoinStatus","방 ID와 비밀번호를 입력해주세요.",true);return}
+ const roomName=el("joinRoomId").value.trim(),password=el("joinRoomPassword").value;
+ if(!roomName||!password){setStatus("roomJoinStatus","방 이름과 비밀번호를 입력해주세요.",true);return}
  setStatus("roomJoinStatus","방에 참여하는 중...");
- const {data,error}=await supabaseClient.rpc("join_room",{target_room:id,room_password:password});
+ const {data,error}=await supabaseClient.rpc("join_room_by_name",{target_room_name:roomName,room_password:password});
  if(error){setStatus("roomJoinStatus","실패: "+error.message,true);return}
  if(!data){setStatus("roomJoinStatus","방 ID 또는 비밀번호가 올바르지 않습니다.",true);return}
- el("joinRoomId").value="";el("joinRoomPassword").value="";setStatus("roomJoinStatus","방에 참여했습니다.");await loadRooms();enterRoom(id);
+ el("joinRoomId").value="";el("joinRoomPassword").value="";setStatus("roomJoinStatus","방에 참여했습니다.");await loadRooms();if(data)enterRoom(data);
 }
 async function loadRooms(){
  const {data,error}=await supabaseClient.from("room_members").select("room_id,role,rooms(id,name,description)");
