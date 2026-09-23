@@ -235,7 +235,7 @@ async function joinRoom(){
 async function loadRooms(){
  const {data,error}=await supabaseClient.from("room_members").select("room_id,role,rooms(id,name,description)");
  if(error){el("roomList").innerHTML='<div class="empty-room">방 목록을 불러오지 못했습니다.<br>'+escapeHtml(error.message)+'</div>';return}
- const rows=(data||[]).filter(x=>x.rooms);
+ const rows=(data||[]).filter(x=>x.rooms && x.rooms.name !== "Wchat 커뮤니티센터");
  if(!rows.length){el("roomList").innerHTML='<div class="empty-room">참여한 방이 없습니다.</div>';return}
  el("roomList").innerHTML=rows.map(x=>'<div class="room-item" onclick="enterRoom(\''+escapeHtml(x.rooms.id)+'\')"><h3>'+escapeHtml(x.rooms.name)+'</h3><p>'+escapeHtml(x.rooms.description||"설명이 없습니다.")+'</p><div class="room-meta">클릭해서 방으로 들어가기 · 방 ID: '+escapeHtml(x.rooms.id)+'</div></div>').join("");
 }
