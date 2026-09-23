@@ -278,7 +278,7 @@ async function loadRooms(){
  if(error){el("roomList").innerHTML='<div class="empty-room">방 목록을 불러오지 못했습니다.<br>'+escapeHtml(error.message)+'</div>';return}
  const rows=(data||[]).filter(x=>x.rooms && x.rooms.name !== "Wchat 커뮤니티센터");
  if(!rows.length){el("roomList").innerHTML='<div class="empty-room">참여한 방이 없습니다.</div>';return}
- el("roomList").innerHTML=rows.map(x=>'<div class="room-item" onclick="enterRoom(\\''+escapeHtml(x.rooms.id)+'\\')"><button class="room-menu-btn" title="메뉴" onclick="event.stopPropagation();toggleRoomMenu(\\''+escapeHtml(x.rooms.id)+'\\')">⋯</button><div id="room-menu-'+escapeHtml(x.rooms.id)+'" class="room-menu hidden" onclick="event.stopPropagation()"><button onclick="deleteRoom(\\''+escapeHtml(x.rooms.id)+'\\')">방 삭제</button></div><h3>'+escapeHtml(x.rooms.name)+'</h3><p>'+escapeHtml(x.rooms.description||"설명이 없습니다.")+'</p><div class="room-meta">클릭해서 방으로 들어가기 · 방 ID: '+escapeHtml(x.rooms.id)+'</div></div>').join("");
+ el("roomList").innerHTML=rows.map(x=>'<div class="room-item" onclick="enterRoom(\''+escapeHtml(x.rooms.id)+'\')"><button class="room-menu-btn" title="메뉴" onclick="event.stopPropagation();toggleRoomMenu(\''+escapeHtml(x.rooms.id)+'\')">⋯</button><div id="room-menu-'+escapeHtml(x.rooms.id)+'" class="room-menu hidden" onclick="event.stopPropagation()"><button onclick="deleteRoom(\''+escapeHtml(x.rooms.id)+'\')">방 삭제</button></div><h3>'+escapeHtml(x.rooms.name)+'</h3><p>'+escapeHtml(x.rooms.description||"설명이 없습니다.")+'</p><div class="room-meta">클릭해서 방으로 들어가기 · 방 ID: '+escapeHtml(x.rooms.id)+'</div></div>').join("");
 }
 function toggleRoomMenu(id){
  document.querySelectorAll(".room-menu").forEach(m=>m.classList.add("hidden"));
