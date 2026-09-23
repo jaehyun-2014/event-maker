@@ -127,3 +127,45 @@ using (public.is_room_owner(id));
 create policy "members can view their memberships"
 on public.room_members for select to authenticated
 using (user_id = auth.uid());
+
+
+-- 방 참여 시 UUID 대신 방 이름으로 참여할 수 있게 합니다.
+drop function if exists public.join_room_by_name(text,text);
+
+create or replace function public.join_room_by_name(
+  target_room_name text,
+  room_password text
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  target_room_id uuid;
+  stored_password text;
+begin
+  if auth.uid() is null then
+    raise exception '로그인이 필요합니다.';
+  end if;
+
+  select id, password_hash
+    into target_room_id, stored_password
+  from public.rooms
+  where name = trim(target_room_name)
+  limit 1;
+
+  if target_room_id is null or stored_password is null or stored_password = '' then
+    return null;
+  end if;
+
+  if stored_password = extensions.crypt(room_password, stored_password) then
+    insert into public.room_members (room_id, user_id, role)
+    values (target_room_id, auth.uid(), 'member')
+    on conflict (room_id, user_id) do nothing;
+    return target_room_id;
+  end if;
+
+  return null;
+end;
+$$;
