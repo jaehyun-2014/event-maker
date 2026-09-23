@@ -374,13 +374,34 @@ async function deleteRoom(id){
 }
 
 async function enterRoom(id){
- const {data,error}=await supabaseClient.from("rooms").select("id,name,description").eq("id",id).single();
+ const {data,error}=await supabaseClient.from("rooms").select("id,name,description,created_by,icon_url").eq("id",id).single();
  if(error||!data){alert("방 정보를 불러오지 못했습니다.");return}
  currentRoom=data;localStorage.setItem("event-maker:last-room:"+currentUser.id,id);
  updateAdminNav();
  el("currentRoomName").textContent=data.name;el("currentRoomDescription").textContent=data.description||"설명이 없습니다.";
  el("notesRoomLabel").textContent=data.name;el("calendarRoomLabel").textContent=data.name;el("filesRoomLabel").textContent=data.name;el("chatRoomTitle").textContent=data.name+" 채팅";
  refreshRoomStats();showPage("room");
+}
+async function openRoomManagement(){
+ if(!currentRoom||!currentUser)return;
+ if(currentRoom.created_by!==currentUser.id){
+   alert("방을 만든 관리자만 방 관리 기능을 사용할 수 있습니다.");
+   return;
+ }
+ el("roomManagePanel").classList.remove("hidden");
+ el("manageRoomName").value=currentRoom.name||"";
+ el("manageRoomDescription").value=currentRoom.description||"";
+ el("roomManageStatus").textContent="";
+ const {data,error}=await supabaseClient.from("room_members").select("user_id,role,joined_at").eq("room_id",currentRoom.id).order("joined_at",{ascending:true});
+ if(error){
+   el("roomMembersList").innerHTML='<div class="empty-room">구성원 목록을 불러오지 못했습니다.<br>'+escapeHtml(error.message)+'</div>';
+   return;
+ }
+ const members=data||[];
+ el("roomMembersList").innerHTML=members.length?members.map(m=>{
+   const owner=m.user_id===currentRoom.created_by||m.role==="owner";
+   return '<div class="member-row"><div><strong>'+escapeHtml(owner?"방 관리자":"구성원")+'</strong><div class="member-id">'+escapeHtml(m.user_id)+'</div></div>'+(owner?'':'<button class="danger-btn member-remove" onclick="removeRoomMember(\''+m.user_id+'\')">내보내기</button>')+'</div>';
+ }).join(""):'<div class="empty-room">구성원이 없습니다.</div>';
 }
 function updateAdminNav(){
  const admin=!!(currentUser&&currentRoom&&currentRoom.created_by===currentUser.id);
