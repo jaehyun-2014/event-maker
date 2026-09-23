@@ -123,6 +123,9 @@ h1{margin:0 0 26px;font-size:38px}h2{margin:0}p{line-height:1.6}
 @media(max-width:700px){.user-guide{margin-top:18px;padding:18px;border-radius:14px}.user-guide h2{font-size:21px}.guide-grid{grid-template-columns:1fr;gap:9px}.guide-item{padding:14px}.guide-item h3{font-size:16px}.guide-item p{font-size:14px}}
 
 .guide-header{display:flex;align-items:center;justify-content:space-between;gap:16px}.guide-header h2{margin:0 0 8px}.guide-toggle{flex-shrink:0}.guide-content{margin-top:20px}
+
+.calendar-event{position:relative;display:flex;align-items:center;justify-content:space-between;gap:4px;overflow:hidden;margin-top:4px;padding:5px 6px;border-radius:6px;background:#eef2ff;font-size:12px;line-height:1.3}.calendar-event>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.calendar-event-actions{display:flex;gap:2px;flex-shrink:0}.calendar-event-actions button{border:0;background:transparent;padding:2px 3px;font-size:11px;color:#315bdc;cursor:pointer}.calendar-event-actions button:last-child{color:#b33b3b}.calendar-event-actions button:hover{text-decoration:underline}
+@media(max-width:700px){.calendar-event{display:block}.calendar-event-actions{margin-top:3px}.calendar-event-actions button{font-size:11px;padding:2px 5px}}
 </style>
 </head>
 <body>
@@ -260,7 +263,7 @@ h1{margin:0 0 26px;font-size:38px}h2{margin:0}p{line-height:1.6}
 <h1>달력</h1>
 <div class="tool-card"><div class="tool-head"><div><h2>일정 추가</h2><p id="calendarRoomLabel">방을 먼저 선택하세요.</p></div></div>
 <div style="display:flex;gap:10px;flex-wrap:wrap"><input id="eventTitle" placeholder="일정 제목" style="flex:2;min-width:180px;border:1px solid #cfd3da;border-radius:9px;padding:12px">
-<input id="eventDate" type="date" style="flex:1;min-width:150px;border:1px solid #cfd3da;border-radius:9px;padding:12px"><button class="primary-btn" onclick="addEvent()">일정 추가</button></div>
+<input id="eventDate" type="date" style="flex:1;min-width:150px;border:1px solid #cfd3da;border-radius:9px;padding:12px"><button id="eventSaveBtn" class="primary-btn" onclick="addEvent()">일정 추가</button><button id="eventCancelBtn" class="secondary-btn hidden" onclick="cancelEditEvent()">취소</button></div>
 </div>
 <div class="calendar-card"><div class="calendar-toolbar"><button class="secondary-btn" onclick="changeMonth(-1)">이전</button><h2 id="calendarMonth"></h2><button class="secondary-btn" onclick="changeMonth(1)">다음</button></div>
 <table class="calendar-table"><thead><tr><th>일</th><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th><th>토</th></tr></thead><tbody id="calendarBody"></tbody></table></div>
@@ -406,12 +409,46 @@ function renderNotes(){
  el("notesList").innerHTML=arr.length?arr.map(x=>'<div class="data-item"><div class="data-main"><strong>'+escapeHtml(x.text)+'</strong><span>'+new Date(x.createdAt).toLocaleString("ko-KR")+'</span></div><div class="data-actions"><button class="danger-btn" onclick="deleteNote(\''+x.id+'\')">삭제</button></div></div>').join(""):'<div class="empty-room">작성한 메모가 없습니다.</div>';
 }
 
+let editingEventId=null;
 function addEvent(){
  if(!requireRoom())return;
- const title=el("eventTitle").value.trim(),date=el("eventDate").value;if(!title||!date){alert("일정 제목과 날짜를 입력해주세요.");return}
- const arr=readData("events");arr.push({id:crypto.randomUUID(),title,date});writeData("events",arr);el("eventTitle").value="";el("eventDate").value="";renderCalendar();refreshRoomStats();
+ const title=el("eventTitle").value.trim(),date=el("eventDate").value;
+ if(!title||!date){alert("일정 제목과 날짜를 입력해주세요.");return}
+ const arr=readData("events");
+ if(editingEventId){
+   const item=arr.find(x=>x.id===editingEventId);
+   if(item){item.title=title;item.date=date;}
+   editingEventId=null;
+ }else{
+   arr.push({id:crypto.randomUUID(),title,date});
+ }
+ writeData("events",arr);
+ el("eventTitle").value="";el("eventDate").value="";
+ el("eventSaveBtn").textContent="일정 추가";el("eventCancelBtn").classList.add("hidden");
+ renderCalendar();refreshRoomStats();
 }
-function deleteEvent(id){if(!requireRoom())return;writeData("events",readData("events").filter(x=>x.id!==id));renderCalendar();refreshRoomStats()}
+function startEditEvent(id){
+ if(!requireRoom())return;
+ const item=readData("events").find(x=>x.id===id);if(!item)return;
+ editingEventId=id;el("eventTitle").value=item.title;el("eventDate").value=item.date;
+ el("eventSaveBtn").textContent="일정 수정";el("eventCancelBtn").classList.remove("hidden");
+ el("eventTitle").focus();
+}
+function cancelEditEvent(){
+ editingEventId=null;el("eventTitle").value="";el("eventDate").value="";
+ el("eventSaveBtn").textContent="일정 추가";el("eventCancelBtn").classList.add("hidden");
+}
+function deleteEvent(id){
+ if(!requireRoom())return;
+ if(!confirm("이 일정을 삭제할까요?"))return;
+ writeData("events",readData("events").filter(x=>x.id!==id));
+ if(editingEventId===id)cancelEditEvent();
+ renderCalendar();refreshRoomStats();
+}
+function localDateKey(d){
+ const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,"0"),day=String(d.getDate()).padStart(2,"0");
+ return y+"-"+m+"-"+day;
+}
 function changeMonth(n){calendarCursor.setMonth(calendarCursor.getMonth()+n);renderCalendar()}
 function renderCalendar(){
  if(!currentRoom){el("calendarMonth").textContent="방을 먼저 선택하세요.";el("calendarBody").innerHTML="";return}
@@ -420,10 +457,10 @@ function renderCalendar(){
  const events=readData("events"),start=new Date(y,m,1-first.getDay()),end=new Date(y,m,last.getDate()+(6-last.getDay())),rows=[];
  for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)){
    if(d.getDay()===0)rows.push([]);
-   const cell=rows[rows.length-1],iso=d.toISOString().slice(0,10),list=events.filter(e=>e.date===iso);
+   const cell=rows[rows.length-1],iso=localDateKey(d),list=events.filter(e=>e.date===iso);
    cell.push({day:d.getDate(),other:d.getMonth()!==m,events:list});
  }
- el("calendarBody").innerHTML=rows.map(week=>"<tr>"+week.map(c=>'<td class="'+(c.other?"other-month":"")+'"><div class="day-number">'+c.day+'</div>'+c.events.map(e=>'<div class="calendar-event" title="'+escapeHtml(e.title)+'">'+escapeHtml(e.title)+'</div>').join("")+"</td>").join("")+"</tr>").join("");
+ el("calendarBody").innerHTML=rows.map(week=>"<tr>"+week.map(c=>'<td class="'+(c.other?"other-month":"")+'"><div class="day-number">'+c.day+'</div>'+c.events.map(e=>'<div class="calendar-event" title="'+escapeHtml(e.title)+'"><span>'+escapeHtml(e.title)+'</span><span class="calendar-event-actions"><button type="button" onclick="event.stopPropagation();startEditEvent(\''+e.id+'\')">수정</button><button type="button" onclick="event.stopPropagation();deleteEvent(\''+e.id+'\')">삭제</button></span></div>').join("")+"</td>").join("")+"</tr>").join("");
 }
 function uploadFile(){
  if(!requireRoom())return;
