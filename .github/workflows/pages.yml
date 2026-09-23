@@ -36,4 +36,4 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-# Pages deployment configuration
+# Pages deployment configuration - retry after Pages source update
