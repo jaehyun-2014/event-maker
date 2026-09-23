@@ -58,6 +58,12 @@ h1{margin:0 0 26px;font-size:38px}h2{margin:0}p{line-height:1.6}
 .calendar-event{font-size:12px;background:#edf2ff;color:#315bdc;border-radius:5px;padding:4px 5px;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .back-link{border:0;background:none;padding:0;color:#315bdc;font-size:14px;margin-bottom:15px}
 .room-settings{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.chat-card{max-width:1000px}.chat-messages{height:500px;overflow-y:auto;border:1px solid #e0e2e7;border-radius:12px;background:#f7f8fa;padding:16px}
+.chat-message{display:flex;flex-direction:column;margin-bottom:13px;max-width:78%}.chat-message.mine{margin-left:auto;align-items:flex-end}
+.chat-author{font-size:12px;color:#777;margin:0 0 4px 5px}.chat-bubble{background:#fff;border:1px solid #e0e2e7;border-radius:12px;padding:10px 13px;word-break:break-word;line-height:1.5}
+.chat-message.mine .chat-bubble{background:#edf2ff;border-color:#d7e0ff}.chat-time{font-size:11px;color:#aaa;margin:4px 5px 0}
+.chat-input-row{display:flex;gap:9px;margin-top:12px}.chat-input-row input{flex:1;border:1px solid #cfd3da;border-radius:9px;padding:12px 13px}
+@media(max-width:900px){.chat-input-row{flex-direction:column}.chat-message{max-width:90%}}
 .status{font-size:13px;margin:10px 0;color:#666}.status.error{color:#b33b3b}.status.ok{color:#287a46}
 .login-message{color:#b33b3b;font-size:14px;margin-top:15px}
 @media(max-width:900px){.sidebar{position:static;width:100%;height:auto}.main{margin-left:0}.stats,.room-grid,.room-list,.room-settings{grid-template-columns:1fr}.account-box{align-items:flex-start;flex-direction:column}.calendar-table td{height:80px}}
@@ -80,7 +86,8 @@ h1{margin:0 0 26px;font-size:38px}h2{margin:0}p{line-height:1.6}
 <button id="navNotes" onclick="showPage('notes')">메모</button>
 <button id="navCalendar" onclick="showPage('calendar')">달력</button>
 <button id="navFiles" onclick="showPage('files')">자료 공유</button>
-<button id="navRooms" onclick="showPage('rooms')">방 관리</button>
+<button id="navChat" onclick="showPage('chat')">채팅</button>
+<button id="navRooms" onclick="showPage('rooms')">방 관리</button> onclick="showPage('rooms')">방 관리</button>
 </nav>
 </aside>
 
@@ -109,6 +116,19 @@ h1{margin:0 0 26px;font-size:38px}h2{margin:0}p{line-height:1.6}
 <button class="secondary-btn" onclick="showPage('files')">자료 추가</button>
 <button class="secondary-btn" onclick="showPage('rooms')">방 관리</button>
 </div></div>
+</section>
+
+<section id="chatPage" class="page hidden">
+<h1>채팅</h1>
+<div class="tool-card chat-card">
+  <div class="tool-head"><div><h2 id="chatRoomTitle">방을 먼저 선택하세요.</h2><p>현재 선택한 행사 준비방의 채팅입니다.</p></div></div>
+  <div id="chatMessages" class="chat-messages"><div class="empty-room">방을 먼저 선택하세요.</div></div>
+  <div class="chat-input-row">
+    <input id="chatInput" placeholder="메시지를 입력하세요" maxlength="1000" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatMessage()}">
+    <button class="primary-btn" onclick="sendChatMessage()">보내기</button>
+  </div>
+  <p id="chatStatus" class="status"></p>
+</div>
 </section>
 
 <section id="roomsPage" class="page hidden">
@@ -199,15 +219,16 @@ async function saveNickname(){
  currentUser=data.user;s.className="status ok";s.textContent="저장되었습니다.";
 }
 function showPage(page){
- const pages=["home","rooms","room","notes","calendar","files"];
+ const pages=["home","rooms","room","notes","calendar","files","chat"];
  pages.forEach(p=>el(p+"Page").classList.add("hidden"));
  el(page+"Page").classList.remove("hidden");
  document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));
- const nav={home:"navHome",rooms:"navRooms",notes:"navNotes",calendar:"navCalendar",files:"navFiles"}[page];
+ const nav={home:"navHome",rooms:"navRooms",notes:"navNotes",calendar:"navCalendar",files:"navFiles",chat:"navChat"}[page];
  if(nav)el(nav).classList.add("active");
  if(page==="notes")renderNotes();
  if(page==="calendar")renderCalendar();
  if(page==="files")renderFiles();
+ if(page==="chat")loadChatMessages();
  if(page==="room")refreshRoomStats();
 }
 function setStatus(id,msg,error=false){const s=el(id);s.className="status "+(error?"error":"ok");s.textContent=msg}
@@ -244,7 +265,7 @@ async function enterRoom(id){
  if(error||!data){alert("방 정보를 불러오지 못했습니다.");return}
  currentRoom=data;localStorage.setItem("event-maker:last-room:"+currentUser.id,id);
  el("currentRoomName").textContent=data.name;el("currentRoomDescription").textContent=data.description||"설명이 없습니다.";
- el("notesRoomLabel").textContent=data.name;el("calendarRoomLabel").textContent=data.name;el("filesRoomLabel").textContent=data.name;
+ el("notesRoomLabel").textContent=data.name;el("calendarRoomLabel").textContent=data.name;el("filesRoomLabel").textContent=data.name;el("chatRoomTitle").textContent=data.name+" 채팅";
  refreshRoomStats();showPage("room");
 }
 function refreshRoomStats(){
@@ -312,6 +333,42 @@ function renderFiles(){
  el("filesList").innerHTML=arr.length?arr.map(x=>'<div class="data-item"><div class="data-main"><strong>'+escapeHtml(x.name)+'</strong><span>'+formatBytes(x.size)+' · '+new Date(x.createdAt).toLocaleString("ko-KR")+'</span></div><div class="data-actions"><button class="secondary-btn" onclick="downloadFile(\''+x.id+'\')">다운로드</button><button class="danger-btn" onclick="deleteFile(\''+x.id+'\')">삭제</button></div></div>').join(""):'<div class="empty-room">공유한 자료가 없습니다.</div>';
 }
 function formatBytes(n){if(n<1024)return n+" B";if(n<1024*1024)return (n/1024).toFixed(1)+" KB";return (n/1024/1024).toFixed(1)+" MB"}
+
+
+let chatChannel=null;
+async function loadChatMessages(){
+ if(!currentRoom){el("chatMessages").innerHTML='<div class="empty-room">방을 먼저 선택하세요.</div>';return}
+ el("chatRoomTitle").textContent=currentRoom.name+" 채팅";
+ const {data,error}=await supabaseClient.from("chat_messages").select("id,user_id,nickname,message,created_at").eq("room_id",currentRoom.id).order("created_at",{ascending:true}).limit(200);
+ if(error){el("chatMessages").innerHTML='<div class="empty-room">채팅을 불러오지 못했습니다.<br>'+escapeHtml(error.message)+'</div>';return}
+ renderChatMessages(data||[]);
+ subscribeChat();
+}
+function renderChatMessages(rows){
+ const box=el("chatMessages");
+ if(!rows.length){box.innerHTML='<div class="empty-room">아직 채팅이 없습니다. 첫 메시지를 보내보세요!</div>';return}
+ box.innerHTML=rows.map(m=>'<div class="chat-message '+(m.user_id===currentUser.id?'mine':'')+'"><div class="chat-author">'+escapeHtml(m.nickname||"사용자")+'</div><div class="chat-bubble">'+escapeHtml(m.message).replace(/\n/g,"<br>")+'</div><div class="chat-time">'+new Date(m.created_at).toLocaleString("ko-KR")+'</div></div>').join("");
+ box.scrollTop=box.scrollHeight;
+}
+function subscribeChat(){
+ if(chatChannel) supabaseClient.removeChannel(chatChannel);
+ if(!currentRoom)return;
+ chatChannel=supabaseClient.channel("chat-"+currentRoom.id).on("postgres_changes",{event:"INSERT",schema:"public",table:"chat_messages",filter:"room_id=eq."+currentRoom.id},payload=>{
+   const box=el("chatMessages");
+   const m=payload.new;
+   const empty=box.querySelector(".empty-room");if(empty)empty.remove();
+   box.insertAdjacentHTML("beforeend",'<div class="chat-message '+(m.user_id===currentUser.id?'mine':'')+'"><div class="chat-author">'+escapeHtml(m.nickname||"사용자")+'</div><div class="chat-bubble">'+escapeHtml(m.message).replace(/\n/g,"<br>")+'</div><div class="chat-time">'+new Date(m.created_at).toLocaleString("ko-KR")+'</div></div>');
+   box.scrollTop=box.scrollHeight;
+ }).subscribe();
+}
+async function sendChatMessage(){
+ if(!requireRoom())return;
+ const input=el("chatInput"),message=input.value.trim();if(!message)return;
+ const nickname=(currentUser.user_metadata?.nickname||currentUser.email?.split("@")[0]||"사용자").slice(0,30);
+ const {error}=await supabaseClient.from("chat_messages").insert({room_id:currentRoom.id,user_id:currentUser.id,nickname,message});
+ if(error){setStatus("chatStatus","전송 실패: "+error.message,true);return}
+ input.value="";setStatus("chatStatus","",false);
+}
 
 checkSession();
 </script>
