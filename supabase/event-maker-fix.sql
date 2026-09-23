@@ -169,3 +169,45 @@ begin
   return null;
 end;
 $$;
+
+
+-- EVENT MAKER 방 채팅
+create table if not exists public.chat_messages (
+  id uuid primary key default gen_random_uuid(),
+  room_id uuid not null references public.rooms(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  nickname text not null default '사용자',
+  message text not null check (char_length(trim(message)) between 1 and 1000),
+  created_at timestamptz not null default now()
+);
+
+alter table public.chat_messages enable row level security;
+
+drop policy if exists "chat members can read" on public.chat_messages;
+drop policy if exists "chat members can send" on public.chat_messages;
+
+create policy "chat members can read"
+on public.chat_messages
+for select
+to authenticated
+using (public.is_room_member(room_id));
+
+create policy "chat members can send"
+on public.chat_messages
+for insert
+to authenticated
+with check (
+  user_id = auth.uid()
+  and public.is_room_member(room_id)
+);
+
+create index if not exists chat_messages_room_created_idx
+on public.chat_messages(room_id, created_at);
+
+-- Supabase Realtime에서 채팅 INSERT를 받을 수 있도록 등록합니다.
+do $$
+begin
+  alter publication supabase_realtime add table public.chat_messages;
+exception
+  when duplicate_object then null;
+end $$;
