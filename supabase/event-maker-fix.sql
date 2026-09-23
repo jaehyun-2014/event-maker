@@ -211,3 +211,12 @@ begin
 exception
   when duplicate_object then null;
 end $$;
+
+
+-- 방 관리자 구성원 관리
+drop policy if exists "owners can manage room members" on public.room_members;
+create policy "owners can manage room members"
+on public.room_members
+for delete
+to authenticated
+using (public.is_room_owner(room_id));
