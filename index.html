@@ -441,7 +441,7 @@ async function renderNotes(){
  const {data,error}=await supabaseClient.from("room_notes").select("id,text,created_at,user_id").eq("room_id",currentRoom.id).order("created_at",{ascending:false});
  if(error){el("notesList").innerHTML='<div class="empty-room">메모를 불러오지 못했습니다.<br>'+escapeHtml(error.message)+'</div>';return}
  const arr=data||[];
- el("notesList").innerHTML=arr.length?arr.map(x=>'<div class="data-item"><div class="data-main"><strong>'+escapeHtml(x.text)+'</strong><span>'+new Date(x.created_at).toLocaleString("ko-KR")+'</span></div><div class="data-actions"><button class="danger-btn" onclick="deleteNote(\\''+x.id+'\\')">삭제</button></div></div>').join(""):'<div class="empty-room">작성한 메모가 없습니다.</div>';
+ el("notesList").innerHTML=arr.length?arr.map(x=>'<div class="data-item"><div class="data-main"><strong>'+escapeHtml(x.text)+'</strong><span>'+new Date(x.created_at).toLocaleString("ko-KR")+'</span></div><div class="data-actions"><button class="danger-btn" onclick="deleteNote(\''+x.id+'\')">삭제</button></div></div>').join(""):'<div class="empty-room">작성한 메모가 없습니다.</div>';
 }
 
 let editingEventId=null;
@@ -501,7 +501,7 @@ async function renderCalendar(){
    const cell=rows[rows.length-1],iso=localDateKey(d),list=events.filter(e=>e.event_date===iso);
    cell.push({day:d.getDate(),other:d.getMonth()!==m,events:list});
  }
- el("calendarBody").innerHTML=rows.map(week=>"<tr>"+week.map(c=>'<td class="'+(c.other?"other-month":"")+'"><div class="day-number">'+c.day+'</div>'+c.events.map(e=>'<div class="calendar-event" id="event-'+e.id+'" title="'+escapeHtml(e.title)+'"><button type="button" class="calendar-event-title" onclick="event.stopPropagation();toggleEventText(\\''+e.id+'\\')" title="전체 일정 보기">'+escapeHtml(e.title)+'</button><span class="calendar-event-actions"><button type="button" onclick="event.stopPropagation();startEditEvent(\\''+e.id+'\\')">수정</button><button type="button" onclick="event.stopPropagation();deleteEvent(\\''+e.id+'\\')">삭제</button></span></div>').join("")+"</td>").join("")+"</tr>").join("");
+ el("calendarBody").innerHTML=rows.map(week=>"<tr>"+week.map(c=>'<td class="'+(c.other?"other-month":"")+'"><div class="day-number">'+c.day+'</div>'+c.events.map(e=>'<div class="calendar-event" id="event-'+e.id+'" title="'+escapeHtml(e.title)+'"><button type="button" class="calendar-event-title" onclick="event.stopPropagation();toggleEventText(\''+e.id+'\')" title="전체 일정 보기">'+escapeHtml(e.title)+'</button><span class="calendar-event-actions"><button type="button" onclick="event.stopPropagation();startEditEvent(\''+e.id+'\')">수정</button><button type="button" onclick="event.stopPropagation();deleteEvent(\''+e.id+'\')">삭제</button></span></div>').join("")+"</td>").join("")+"</tr>").join("");
 }
 async function uploadFile(){
  if(!requireRoom())return;
@@ -542,7 +542,7 @@ async function renderFiles(){
  const {data,error}=await supabaseClient.from("room_files").select("id,name,size,type,created_at,user_id").eq("room_id",currentRoom.id).order("created_at",{ascending:false});
  if(error){el("filesList").innerHTML='<div class="empty-room">자료를 불러오지 못했습니다.<br>'+escapeHtml(error.message)+'</div>';return}
  const arr=data||[];
- el("filesList").innerHTML=arr.length?arr.map(x=>'<div class="data-item"><div class="data-main"><strong>'+escapeHtml(x.name)+'</strong><span>'+formatBytes(x.size)+' · '+new Date(x.created_at).toLocaleString("ko-KR")+'</span></div><div class="data-actions"><button class="secondary-btn" onclick="downloadFile(\\''+x.id+'\\')">다운로드</button><button class="danger-btn" onclick="deleteFile(\\''+x.id+'\\')">삭제</button></div></div>').join(""):'<div class="empty-room">공유한 자료가 없습니다.</div>';
+ el("filesList").innerHTML=arr.length?arr.map(x=>'<div class="data-item"><div class="data-main"><strong>'+escapeHtml(x.name)+'</strong><span>'+formatBytes(x.size)+' · '+new Date(x.created_at).toLocaleString("ko-KR")+'</span></div><div class="data-actions"><button class="secondary-btn" onclick="downloadFile(\''+x.id+'\')">다운로드</button><button class="danger-btn" onclick="deleteFile(\''+x.id+'\')">삭제</button></div></div>').join(""):'<div class="empty-room">공유한 자료가 없습니다.</div>';
 }
 function formatBytes(n){if(n<1024)return n+" B";if(n<1024*1024)return (n/1024).toFixed(1)+" KB";return (n/1024/1024).toFixed(1)+" MB"}
 
