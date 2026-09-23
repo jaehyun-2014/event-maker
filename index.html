@@ -58,7 +58,9 @@ h1{margin:0 0 26px;font-size:38px}h2{margin:0}p{line-height:1.6}
 .calendar-event{font-size:12px;background:#edf2ff;color:#315bdc;border-radius:5px;padding:4px 5px;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .back-link{border:0;background:none;padding:0;color:#315bdc;font-size:14px;margin-bottom:15px}
 .room-settings{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.chat-card{max-width:1000px}.chat-messages{height:500px;overflow-y:auto;border:1px solid #e0e2e7;border-radius:12px;background:#f7f8fa;padding:16px}
+.chat-card{max-width:1000px}
+.member-list{display:flex;flex-direction:column;gap:8px}.member-row{display:flex;align-items:center;justify-content:space-between;border:1px solid #e3e5e8;border-radius:9px;padding:10px 12px;background:#fafafa}.member-role{font-size:12px;color:#777}.member-remove{border:1px solid #ddd;background:#fff;border-radius:7px;padding:6px 9px;cursor:pointer}
+.manage-actions{display:flex;gap:8px}.chat-messages{height:500px;overflow-y:auto;border:1px solid #e0e2e7;border-radius:12px;background:#f7f8fa;padding:16px}
 .chat-message{display:flex;flex-direction:column;margin-bottom:13px;max-width:78%}.chat-message.mine{margin-left:auto;align-items:flex-end}
 .chat-author{font-size:12px;color:#777;margin:0 0 4px 5px}.chat-bubble{background:#fff;border:1px solid #e0e2e7;border-radius:12px;padding:10px 13px;word-break:break-word;line-height:1.5}
 .chat-message.mine .chat-bubble{background:#edf2ff;border-color:#d7e0ff}.chat-time{font-size:11px;color:#aaa;margin:4px 5px 0}
@@ -143,7 +145,23 @@ h1{margin:0 0 26px;font-size:38px}h2{margin:0}p{line-height:1.6}
 </div>
 <div class="room-list-card"><div class="room-list-header"><div><h2>내 방</h2><p>방 상자를 클릭하면 해당 방으로 들어갑니다.</p></div><button class="secondary-btn" onclick="loadRooms()">새로고침</button></div>
 <div id="roomList" class="room-list"></div></div>
-</section>
+<div id="roomManagePanel" class="tool-card hidden" style="margin-top:18px">
+<h2>방 관리</h2>
+<p>방 관리자만 방의 이름, 설명, 아이콘과 구성원을 관리할 수 있습니다.</p>
+<div class="room-settings">
+<label>방 이름<input id="manageRoomName"></label>
+<label>방 설명<input id="manageRoomDescription"></label>
+</div>
+<div style="margin-top:14px">
+<label>방 아이콘 <input id="manageRoomIcon" type="file" accept="image/*"></label>
+</div>
+<div class="manage-actions" style="margin-top:14px">
+<button class="primary-btn" onclick="saveRoomSettings()">변경 저장</button>
+</div>
+<h3 style="margin-top:22px">구성원</h3>
+<div id="roomMembersList" class="member-list"></div>
+<p id="roomManageStatus" class="status"></p>
+</div></section>
 
 <section id="roomPage" class="page hidden">
 <button class="back-link" onclick="showPage('rooms')">← 내 방 목록으로</button>
@@ -229,6 +247,7 @@ function showPage(page){
  if(page==="calendar")renderCalendar();
  if(page==="files")renderFiles();
  if(page==="chat")loadChatMessages();
+ if(page==="rooms" && currentRoom)openRoomManagement();
  if(page==="room")refreshRoomStats();
 }
 function setStatus(id,msg,error=false){const s=el(id);s.className="status "+(error?"error":"ok");s.textContent=msg}
@@ -368,6 +387,44 @@ async function sendChatMessage(){
  const {error}=await supabaseClient.from("chat_messages").insert({room_id:currentRoom.id,user_id:currentUser.id,nickname,message});
  if(error){setStatus("chatStatus","전송 실패: "+error.message,true);return}
  input.value="";setStatus("chatStatus","",false);
+}
+
+
+async function openRoomManagement(){
+ if(!currentRoom)return;
+ const {data:members,error}=await supabaseClient.from("room_members").select("user_id,role,joined_at").eq("room_id",currentRoom.id).order("joined_at",{ascending:true});
+ const isOwner=currentRoom.created_by===currentUser.id;
+ el("roomManagePanel").classList.toggle("hidden",!isOwner);
+ if(!isOwner){setStatus("roomManageStatus","방 관리자만 관리할 수 있습니다.",true);return}
+ el("manageRoomName").value=currentRoom.name||"";
+ el("manageRoomDescription").value=currentRoom.description||"";
+ const list=el("roomMembersList");
+ if(error){list.innerHTML='<div>'+escapeHtml(error.message)+'</div>';return}
+ list.innerHTML=(members||[]).map(m=>'<div class="member-row"><span>'+escapeHtml(m.user_id)+'</span><span class="member-role">'+(m.role==="owner"?"관리자":"구성원")+'</span>'+(m.role==="owner"?'':('<button class="member-remove" onclick="removeRoomMember(\''+m.user_id+'\')">내보내기</button>'))+'</div>').join("")||"<div>구성원이 없습니다.</div>";
+}
+async function saveRoomSettings(){
+ if(!currentRoom)return;
+ const name=el("manageRoomName").value.trim(),description=el("manageRoomDescription").value.trim();
+ if(!name){setStatus("roomManageStatus","방 이름을 입력해주세요.",true);return}
+ const {error}=await supabaseClient.from("rooms").update({name,description}).eq("id",currentRoom.id);
+ if(error){setStatus("roomManageStatus","저장 실패: "+error.message,true);return}
+ const file=el("manageRoomIcon").files[0];
+ if(file){
+   const path=currentRoom.id+"/icon-"+Date.now()+"-"+file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
+   const up=await supabaseClient.storage.from("room-icons").upload(path,file,{upsert:true});
+   if(up.error){setStatus("roomManageStatus","아이콘 업로드 실패: "+up.error.message,true);return}
+   const pub=supabaseClient.storage.from("room-icons").getPublicUrl(path);
+   await supabaseClient.from("rooms").update({icon_url:pub.data.publicUrl}).eq("id",currentRoom.id);
+ }
+ currentRoom={...currentRoom,name,description};
+ await loadRooms(); openRoomManagement(); setStatus("roomManageStatus","저장되었습니다.");
+}
+async function removeRoomMember(userId){
+ if(!currentRoom||currentRoom.created_by!==currentUser.id)return;
+ if(!confirm("이 구성원을 방에서 내보낼까요?"))return;
+ const {error}=await supabaseClient.from("room_members").delete().eq("room_id",currentRoom.id).eq("user_id",userId);
+ if(error){setStatus("roomManageStatus","구성원 삭제 실패: "+error.message,true);return}
+ openRoomManagement();
 }
 
 checkSession();
