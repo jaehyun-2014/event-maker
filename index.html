@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EVENT MAKER</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:"Malgun Gothic",Arial,sans-serif;background:#f4f6f9;color:#111}
+.sidebar{position:fixed;left:0;top:0;width:278px;height:100vh;background:#17191d;border-right:1px solid #292c32;padding:28px 14px}
+.logo{font-size:22px;font-weight:800;line-height:1.35;padding:0 6px 25px;color:#fff}.nav{display:flex;flex-direction:column;gap:5px}
+.nav button{border:0;background:transparent;color:#e5e7eb;text-align:left;font-size:17px;padding:14px 16px;border-radius:10px;cursor:pointer}.nav button:hover{background:#24272d;color:#fff}.nav button.active{background:#2a2f3a;color:#6f8cff}
+.main{margin-left:278px;min-height:100vh;padding:34px 36px 60px}.page{max-width:1550px;margin:auto}h1{margin:0 0 26px;font-size:38px}h2{margin:0}.hidden{display:none!important}
+.account-box,.stat-card,.quick-card,.room-card,.room-list-card{background:#fff;border:1px solid #d9dce3;border-radius:16px}.account-box{padding:20px;margin-bottom:22px}.account-box p{margin:0 0 13px;color:#555}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}.stat-card{padding:28px}.stat-card h2{font-size:25px;margin-bottom:28px}.stat-number{font-size:40px;font-weight:700;margin-bottom:7px}.stat-label{font-size:16px}
+.quick-card{margin-top:27px;padding:28px}.quick-card h2{font-size:24px;margin-bottom:25px}.quick-buttons{display:flex;gap:10px}
+button{font-family:inherit}.primary-btn,.secondary-btn{border-radius:9px;padding:12px 18px;font-size:15px;cursor:pointer}.primary-btn{border:0;background:#315bdc;color:#fff}.primary-btn:hover{background:#284fc8}.secondary-btn{border:1px solid #cfd3da;background:#fff;color:#222}.secondary-btn:hover{background:#f5f6f8}
+.room-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}.room-card{padding:27px}.room-card h2{font-size:24px;margin-bottom:8px}.room-card-desc{margin:0 0 22px;color:#666;font-size:14px;line-height:1.6}
+.room-card input,.room-card textarea,.login-box input{width:100%;border:1px solid #cfd3da;border-radius:9px;padding:12px 13px;font-size:14px;margin-bottom:11px;outline:none;background:#fff}.room-card textarea{height:90px;resize:vertical;font-family:inherit}
+.room-card input:focus,.room-card textarea:focus,.login-box input:focus{border-color:#315bdc;box-shadow:0 0 0 3px rgba(49,91,220,.08)}
+.room-list-card{padding:27px;margin-top:22px}.room-list-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}.room-list-header h2{font-size:24px;margin-bottom:6px}.room-list-header p{margin:0;color:#777;font-size:14px}
+.room-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.room-item{border:1px solid #e0e2e7;border-radius:12px;padding:18px;background:#fafbfc}.room-item h3{margin:0 0 7px;font-size:18px}.room-item p{margin:0 0 10px;color:#777;font-size:13px}.room-id{font-family:monospace;font-size:12px;color:#555;background:#f0f1f4;padding:7px 9px;border-radius:6px;word-break:break-all}.empty-room{grid-column:1/-1;text-align:center;padding:35px 10px;color:#888;border:1px dashed #d5d8de;border-radius:12px}
+.login-box{max-width:480px;margin:100px auto;background:#fff;border:1px solid #d9dce3;border-radius:16px;padding:30px}.login-box h1{font-size:30px;margin-bottom:25px}
+@media(max-width:900px){.sidebar{position:static;width:100%;height:auto;border-right:0;border-bottom:1px solid #292c32}.main{margin-left:0}.stats,.room-grid,.room-list{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="loginScreen" class="login-box">
+<h1>EVENT MAKER</h1>
+<input id="email" type="email" placeholder="이메일"><input id="password" type="password" placeholder="비밀번호">
+<div style="display:flex;gap:8px"><button class="primary-btn" onclick="login()">로그인</button><button class="secondary-btn" onclick="signup()">회원가입</button></div>
+<p id="loginMessage"></p>
+</div>
+<div id="app" class="hidden">
+<aside class="sidebar"><div class="logo">EVENT MAKER</div><nav class="nav">
+<button id="navHome" class="active" onclick="showPage('home')">홈</button><button id="navNotes" onclick="showPage('notes')">메모</button><button id="navCalendar" onclick="showPage('calendar')">달력</button><button id="navFiles" onclick="showPage('files')">자료 공유</button><button id="navRooms" onclick="showPage('rooms')">방 관리</button>
+</nav></aside>
+<main class="main">
+<div class="account-box"><p>로그인 계정: <strong id="accountEmail"></strong></p><button class="secondary-btn" onclick="logout()">로그아웃</button></div>
+<section id="homePage" class="page"><h1>행사 준비방</h1><div class="stats">
+<div class="stat-card"><h2>메모</h2><div id="memoCount" class="stat-number">0</div><div class="stat-label">등록된 준비사항</div></div>
+<div class="stat-card"><h2>일정</h2><div id="eventCount" class="stat-number">0</div><div class="stat-label">등록된 행사 일정</div></div>
+<div class="stat-card"><h2>자료</h2><div id="fileCount" class="stat-number">0</div><div class="stat-label">공유 자료</div></div></div>
+<div class="quick-card"><h2>빠른 작업</h2><div class="quick-buttons"><button class="primary-btn" onclick="showPage('notes')">메모 추가</button><button class="secondary-btn" onclick="showPage('calendar')">일정 추가</button><button class="secondary-btn" onclick="showPage('files')">자료 추가</button></div></div></section>
+<section id="notesPage" class="page hidden"><h1>메모</h1><div class="room-card"><h2>준비사항</h2><input id="noteInput" placeholder="메모 내용을 입력하세요"><button class="primary-btn" onclick="addNote()">메모 추가</button><div id="notesList" style="margin-top:20px"></div></div></section>
+<section id="calendarPage" class="page hidden"><h1>달력</h1><div class="room-card"><h2>일정 추가</h2><input id="eventTitle" placeholder="일정 제목"><input id="eventDate" type="date"><button class="primary-btn" onclick="addEvent()">일정 추가</button><div id="eventsList" style="margin-top:20px"></div></div></section>
+<section id="filesPage" class="page hidden"><h1>자료 공유</h1><div class="room-card"><h2>자료</h2><p class="room-card-desc">공유할 파일을 선택하세요.</p><input id="fileInput" type="file"><button class="primary-btn" onclick="uploadFile()">자료 추가</button><div id="filesList" style="margin-top:20px"></div></div></section>
+<section id="roomsPage" class="page hidden"><h1>방 관리</h1><div class="room-grid">
+<div class="room-card"><h2>새 방 만들기</h2><p class="room-card-desc">새로운 행사 준비방을 만들고 친구들을 초대하세요.</p><input id="roomName" placeholder="방 이름"><textarea id="roomDescription" placeholder="방 설명"></textarea><input id="roomPassword" type="password" placeholder="방 비밀번호"><button class="primary-btn" onclick="createRoom()">방 만들기</button></div>
+<div class="room-card"><h2>방 참여</h2><p class="room-card-desc">초대받은 방의 ID와 비밀번호를 입력하세요.</p><input id="joinRoomId" placeholder="방 ID"><input id="joinRoomPassword" type="password" placeholder="방 비밀번호"><button class="primary-btn" onclick="joinRoom()">방 참여</button></div>
+</div>
+<div class="room-list-card"><div class="room-list-header"><div><h2>내 방</h2><p>현재 참여하고 있는 행사 준비방입니다.</p></div><button class="secondary-btn" onclick="loadRooms()">새로고침</button></div><div id="roomList" class="room-list"><div class="empty-room">참여한 방이 없습니다.</div></div></div></section>
+</main></div>
+<script>
+const SUPABASE_URL="https://qugdtljqifagaanrelxq.supabase.co",SUPABASE_KEY="sb_publishable_K1mj11BXsdVYBWroata6cg_g9WKcfL4";
+const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);let currentUser=null;
+async function login(){const email=document.getElementById("email").value.trim(),password=document.getElementById("password").value;const{data,error}=await supabaseClient.auth.signInWithPassword({email,password});if(error){loginMessage.textContent=error.message;return}currentUser=data.user;openApp()}
+async function signup(){const email=document.getElementById("email").value.trim(),password=document.getElementById("password").value;const{error}=await supabaseClient.auth.signUp({email,password});loginMessage.textContent=error?error.message:"회원가입이 완료되었습니다."}
+async function logout(){await supabaseClient.auth.signOut();currentUser=null;app.classList.add("hidden");loginScreen.classList.remove("hidden")}
+function openApp(){loginScreen.classList.add("hidden");app.classList.remove("hidden");accountEmail.textContent=currentUser.email;showPage("home");loadRooms()}
+async function checkSession(){const{data}=await supabaseClient.auth.getSession();if(data.session){currentUser=data.session.user;openApp()}}
+function showPage(page){["home","notes","calendar","files","rooms"].forEach(p=>document.getElementById(p+"Page").classList.add("hidden"));document.getElementById(page+"Page").classList.remove("hidden");document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));document.getElementById({home:"navHome",notes:"navNotes",calendar:"navCalendar",files:"navFiles",rooms:"navRooms"}[page]).classList.add("active")}
+async function createRoom(){const name=roomName.value.trim(),description=roomDescription.value.trim(),password=roomPassword.value;if(!name||!password){alert("방 이름과 비밀번호를 입력해주세요.");return}const{error}=await supabaseClient.rpc("create_room",{room_name:name,room_description:description,room_password:password});if(error){alert("방 만들기에 실패했습니다.\n"+error.message);return}alert("방이 만들어졌습니다.");roomName.value="";roomDescription.value="";roomPassword.value="";loadRooms()}
+async function joinRoom(){const id=joinRoomId.value.trim(),password=joinRoomPassword.value;if(!id||!password){alert("방 ID와 비밀번호를 입력해주세요.");return}const{data,error}=await supabaseClient.rpc("join_room",{target_room:id,room_password:password});if(error){alert("방 참여에 실패했습니다.\n"+error.message);return}if(!data){alert("방 ID 또는 비밀번호가 올바르지 않습니다.");return}alert("방에 참여했습니다.");joinRoomId.value="";joinRoomPassword.value="";loadRooms()}
+async function loadRooms(){const{data,error}=await supabaseClient.from("room_members").select("room_id,role,rooms(id,name,description)");if(error){console.error(error);return}roomList.innerHTML=!data||!data.length?'<div class="empty-room">참여한 방이 없습니다.</div>':data.map(x=>x.rooms?'<div class="room-item"><h3>'+escapeHtml(x.rooms.name)+'</h3><p>'+escapeHtml(x.rooms.description||"설명이 없습니다.")+'</p><div class="room-id">방 ID: '+x.rooms.id+'</div></div>':"").join("")}
+function addNote(){const t=noteInput.value.trim();if(!t)return;const e=document.createElement("div");e.style.cssText="padding:13px;border:1px solid #ddd;border-radius:9px;margin-bottom:8px;background:#fafafa";e.textContent=t;notesList.prepend(e);noteInput.value="";memoCount.textContent=notesList.children.length}
+function addEvent(){const t=eventTitle.value.trim(),d=eventDate.value;if(!t||!d){alert("일정 제목과 날짜를 입력해주세요.");return}const e=document.createElement("div");e.style.cssText="padding:13px;border:1px solid #ddd;border-radius:9px;margin-bottom:8px;background:#fafafa";e.innerHTML="<strong>"+escapeHtml(t)+"</strong><br><span style='color:#777'>"+escapeHtml(d)+"</span>";eventsList.prepend(e);eventTitle.value="";eventDate.value="";eventCount.textContent=eventsList.children.length}
+function uploadFile(){const f=fileInput.files[0];if(!f){alert("파일을 선택해주세요.");return}const e=document.createElement("div");e.style.cssText="padding:13px;border:1px solid #ddd;border-radius:9px;margin-bottom:8px;background:#fafafa";e.textContent=f.name;filesList.prepend(e);fileInput.value="";fileCount.textContent=filesList.children.length}
+function escapeHtml(v){return String(v).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
+checkSession();
+</script>
+</body>
+</html>
