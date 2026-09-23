@@ -407,55 +407,68 @@ function updateAdminNav(){
  const admin=!!(currentUser&&currentRoom&&currentRoom.created_by===currentUser.id);
  el("navRoomAdmin").classList.toggle("hidden",!admin);
 }
-function refreshRoomStats(){
- if(!currentRoom)return;
- el("roomMemoCount").textContent=readData("notes").length;
- el("roomEventCount").textContent=readData("events").length;
- el("roomFileCount").textContent=readData("files").length;
- el("memoCount").textContent=readData("notes").length;
- el("eventCount").textContent=readData("events").length;
- el("fileCount").textContent=readData("files").length;
+async function refreshRoomStats(){
+ if(!currentRoom){
+   el("roomMemoCount").textContent="0";el("roomEventCount").textContent="0";el("roomFileCount").textContent="0";
+   el("memoCount").textContent="0";el("eventCount").textContent="0";el("fileCount").textContent="0";return;
+ }
+ const [notes,events,files]=await Promise.all([
+   supabaseClient.from("room_notes").select("id",{count:"exact",head:true}).eq("room_id",currentRoom.id),
+   supabaseClient.from("room_events").select("id",{count:"exact",head:true}).eq("room_id",currentRoom.id),
+   supabaseClient.from("room_files").select("id",{count:"exact",head:true}).eq("room_id",currentRoom.id)
+ ]);
+ const nc=notes.count||0,ec=events.count||0,fc=files.count||0;
+ el("roomMemoCount").textContent=nc;el("roomEventCount").textContent=ec;el("roomFileCount").textContent=fc;
+ el("memoCount").textContent=nc;el("eventCount").textContent=ec;el("fileCount").textContent=fc;
 }
 function requireRoom(){if(!currentRoom){alert("먼저 방 관리에서 내 방을 클릭해 주세요.");showPage("rooms");return false}return true}
 
-function addNote(){
+async function addNote(){
  if(!requireRoom())return;
  const text=el("noteInput").value.trim();if(!text)return;
- const arr=readData("notes");arr.unshift({id:crypto.randomUUID(),text,createdAt:new Date().toISOString()});writeData("notes",arr);el("noteInput").value="";renderNotes();refreshRoomStats();
+ const {error}=await supabaseClient.from("room_notes").insert({room_id:currentRoom.id,user_id:currentUser.id,text});
+ if(error){alert("메모 저장 실패: "+error.message);return}
+ el("noteInput").value="";await renderNotes();refreshRoomStats();
 }
-function deleteNote(id){if(!requireRoom())return;writeData("notes",readData("notes").filter(x=>x.id!==id));renderNotes();refreshRoomStats()}
-function renderNotes(){
+async function deleteNote(id){
+ if(!requireRoom())return;
+ const {error}=await supabaseClient.from("room_notes").delete().eq("id",id).eq("room_id",currentRoom.id);
+ if(error){alert("메모 삭제 실패: "+error.message);return}
+ await renderNotes();refreshRoomStats();
+}
+async function renderNotes(){
  if(!currentRoom){el("notesList").innerHTML='<div class="empty-room">방을 먼저 선택하세요.</div>';return}
- const arr=readData("notes");
- el("notesList").innerHTML=arr.length?arr.map(x=>'<div class="data-item"><div class="data-main"><strong>'+escapeHtml(x.text)+'</strong><span>'+new Date(x.createdAt).toLocaleString("ko-KR")+'</span></div><div class="data-actions"><button class="danger-btn" onclick="deleteNote(\''+x.id+'\')">삭제</button></div></div>').join(""):'<div class="empty-room">작성한 메모가 없습니다.</div>';
+ const {data,error}=await supabaseClient.from("room_notes").select("id,text,created_at,user_id").eq("room_id",currentRoom.id).order("created_at",{ascending:false});
+ if(error){el("notesList").innerHTML='<div class="empty-room">메모를 불러오지 못했습니다.<br>'+escapeHtml(error.message)+'</div>';return}
+ const arr=data||[];
+ el("notesList").innerHTML=arr.length?arr.map(x=>'<div class="data-item"><div class="data-main"><strong>'+escapeHtml(x.text)+'</strong><span>'+new Date(x.created_at).toLocaleString("ko-KR")+'</span></div><div class="data-actions"><button class="danger-btn" onclick="deleteNote(\\''+x.id+'\\')">삭제</button></div></div>').join(""):'<div class="empty-room">작성한 메모가 없습니다.</div>';
 }
 
 let editingEventId=null;
-function addEvent(){
+async function addEvent(){
  if(!requireRoom())return;
  const title=el("eventTitle").value.trim(),date=el("eventDate").value;
  if(!title||!date){alert("일정 제목과 날짜를 입력해주세요.");return}
- const arr=readData("events");
+ let error;
  if(editingEventId){
-   const item=arr.find(x=>x.id===editingEventId);
-   if(item){item.title=title;item.date=date;}
-   editingEventId=null;
+   ({error}=await supabaseClient.from("room_events").update({title,event_date:date}).eq("id",editingEventId).eq("room_id",currentRoom.id));
  }else{
-   arr.push({id:crypto.randomUUID(),title,date});
+   ({error}=await supabaseClient.from("room_events").insert({room_id:currentRoom.id,user_id:currentUser.id,title,event_date:date}));
  }
- writeData("events",arr);
- el("eventTitle").value="";el("eventDate").value="";
+ if(error){alert("일정 저장 실패: "+error.message);return}
+ editingEventId=null;el("eventTitle").value="";el("eventDate").value="";
  el("eventSaveBtn").textContent="일정 추가";el("eventCancelBtn").classList.add("hidden");
- renderCalendar();refreshRoomStats();
+ await renderCalendar();refreshRoomStats();
 }
 function toggleEventText(id){
  const box=el("event-"+id);if(!box)return;
  box.classList.toggle("expanded");
 }
-function startEditEvent(id){
+async function startEditEvent(id){
  if(!requireRoom())return;
- const item=readData("events").find(x=>x.id===id);if(!item)return;
- editingEventId=id;el("eventTitle").value=item.title;el("eventDate").value=item.date;
+ const {data,error}=await supabaseClient.from("room_events").select("id,title,event_date").eq("id",id).eq("room_id",currentRoom.id).single();
+ if(error||!data)return;
+ editingEventId=id;el("eventTitle").value=data.title;el("eventDate").value=data.event_date;
  el("eventSaveBtn").textContent="일정 수정";el("eventCancelBtn").classList.remove("hidden");
  el("eventTitle").focus();
 }
@@ -463,54 +476,75 @@ function cancelEditEvent(){
  editingEventId=null;el("eventTitle").value="";el("eventDate").value="";
  el("eventSaveBtn").textContent="일정 추가";el("eventCancelBtn").classList.add("hidden");
 }
-function deleteEvent(id){
+async function deleteEvent(id){
  if(!requireRoom())return;
  if(!confirm("이 일정을 삭제할까요?"))return;
- writeData("events",readData("events").filter(x=>x.id!==id));
+ const {error}=await supabaseClient.from("room_events").delete().eq("id",id).eq("room_id",currentRoom.id);
+ if(error){alert("일정 삭제 실패: "+error.message);return}
  if(editingEventId===id)cancelEditEvent();
- renderCalendar();refreshRoomStats();
+ await renderCalendar();refreshRoomStats();
 }
 function localDateKey(d){
  const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,"0"),day=String(d.getDate()).padStart(2,"0");
  return y+"-"+m+"-"+day;
 }
 function changeMonth(n){calendarCursor.setMonth(calendarCursor.getMonth()+n);renderCalendar()}
-function renderCalendar(){
+async function renderCalendar(){
  if(!currentRoom){el("calendarMonth").textContent="방을 먼저 선택하세요.";el("calendarBody").innerHTML="";return}
- const y=calendarCursor.getFullYear(),m=calendarCursor.getMonth(),first=new Date(y,m,1),last=new Date(y,m+1,0);
+ const y=calendarCursor.getFullYear(),m=calendarCursor.getMonth(),first=new Date(y,m,1),last=new Date(y,m+1,0),start=new Date(y,m,1-first.getDay()),end=new Date(y,m,last.getDate()+(6-last.getDay())),rows=[];
+ const {data,error}=await supabaseClient.from("room_events").select("id,title,event_date").eq("room_id",currentRoom.id).order("event_date",{ascending:true});
+ if(error){el("calendarBody").innerHTML='<tr><td colspan="7" class="empty-room">일정을 불러오지 못했습니다.<br>'+escapeHtml(error.message)+'</td></tr>';return}
+ const events=data||[];
  el("calendarMonth").textContent=y+"년 "+(m+1)+"월";
- const events=readData("events"),start=new Date(y,m,1-first.getDay()),end=new Date(y,m,last.getDate()+(6-last.getDay())),rows=[];
  for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)){
    if(d.getDay()===0)rows.push([]);
-   const cell=rows[rows.length-1],iso=localDateKey(d),list=events.filter(e=>e.date===iso);
+   const cell=rows[rows.length-1],iso=localDateKey(d),list=events.filter(e=>e.event_date===iso);
    cell.push({day:d.getDate(),other:d.getMonth()!==m,events:list});
  }
- el("calendarBody").innerHTML=rows.map(week=>"<tr>"+week.map(c=>'<td class="'+(c.other?"other-month":"")+'"><div class="day-number">'+c.day+'</div>'+c.events.map(e=>'<div class="calendar-event" id="event-'+e.id+'" title="'+escapeHtml(e.title)+'"><button type="button" class="calendar-event-title" onclick="event.stopPropagation();toggleEventText(\''+e.id+'\')" title="전체 일정 보기">'+escapeHtml(e.title)+'</button><span class="calendar-event-actions"><button type="button" onclick="event.stopPropagation();startEditEvent(\''+e.id+'\')">수정</button><button type="button" onclick="event.stopPropagation();deleteEvent(\''+e.id+'\')">삭제</button></span></div>').join("")+"</td>").join("")+"</tr>").join("");
+ el("calendarBody").innerHTML=rows.map(week=>"<tr>"+week.map(c=>'<td class="'+(c.other?"other-month":"")+'"><div class="day-number">'+c.day+'</div>'+c.events.map(e=>'<div class="calendar-event" id="event-'+e.id+'" title="'+escapeHtml(e.title)+'"><button type="button" class="calendar-event-title" onclick="event.stopPropagation();toggleEventText(\\''+e.id+'\\')" title="전체 일정 보기">'+escapeHtml(e.title)+'</button><span class="calendar-event-actions"><button type="button" onclick="event.stopPropagation();startEditEvent(\\''+e.id+'\\')">수정</button><button type="button" onclick="event.stopPropagation();deleteEvent(\\''+e.id+'\\')">삭제</button></span></div>').join("")+"</td>").join("")+"</tr>").join("");
 }
-function uploadFile(){
+async function uploadFile(){
  if(!requireRoom())return;
  const f=el("fileInput").files[0];if(!f){alert("파일을 선택해주세요.");return}
- if(f.size>4*1024*1024){alert("브라우저 저장 한도 때문에 4MB 이하 파일을 선택해주세요.");return}
- const reader=new FileReader();
- reader.onload=()=>{
-  const arr=readData("files");arr.unshift({id:crypto.randomUUID(),name:f.name,size:f.size,type:f.type,data:reader.result,createdAt:new Date().toISOString()});
-  try{writeData("files",arr)}catch{alert("저장 공간이 부족합니다. 기존 자료를 삭제한 뒤 다시 시도해주세요.");return}
-  el("fileInput").value="";renderFiles();refreshRoomStats();
- };
- reader.readAsDataURL(f);
+ if(f.size>20*1024*1024){alert("20MB 이하 파일을 선택해주세요.");return}
+ const safeName=f.name.replace(/[^a-zA-Z0-9._-]/g,"_");
+ const path=currentRoom.id+"/"+crypto.randomUUID()+"-"+safeName;
+ const up=await supabaseClient.storage.from("event-files").upload(path,f,{upsert:false});
+ if(up.error){alert("파일 업로드 실패: "+up.error.message);return}
+ const {error}=await supabaseClient.from("room_files").insert({room_id:currentRoom.id,user_id:currentUser.id,name:f.name,size:f.size,type:f.type||"application/octet-stream",storage_path:path});
+ if(error){
+   await supabaseClient.storage.from("event-files").remove([path]);
+   alert("파일 정보 저장 실패: "+error.message);return;
+ }
+ el("fileInput").value="";await renderFiles();refreshRoomStats();
 }
-function downloadFile(id){
- const f=readData("files").find(x=>x.id===id);if(!f)return;
- const a=document.createElement("a");a.href=f.data;a.download=f.name;document.body.appendChild(a);a.click();a.remove();
+async function downloadFile(id){
+ if(!requireRoom())return;
+ const {data:file,error}=await supabaseClient.from("room_files").select("name,storage_path").eq("id",id).eq("room_id",currentRoom.id).single();
+ if(error||!file){alert("자료 정보를 찾을 수 없습니다.");return}
+ const {data,error:signError}=await supabaseClient.storage.from("event-files").createSignedUrl(file.storage_path,60);
+ if(signError||!data?.signedUrl){alert("다운로드 링크를 만들 수 없습니다.");return}
+ const a=document.createElement("a");a.href=data.signedUrl;a.download=file.name;document.body.appendChild(a);a.click();a.remove();
 }
-function deleteFile(id){if(!requireRoom())return;writeData("files",readData("files").filter(x=>x.id!==id));renderFiles();refreshRoomStats()}
-function renderFiles(){
+async function deleteFile(id){
+ if(!requireRoom())return;
+ const {data:file,error:findError}=await supabaseClient.from("room_files").select("storage_path").eq("id",id).eq("room_id",currentRoom.id).single();
+ if(findError||!file){alert("자료 정보를 찾을 수 없습니다.");return}
+ if(!confirm("이 자료를 삭제할까요?"))return;
+ const {error:storageError}=await supabaseClient.storage.from("event-files").remove([file.storage_path]);
+ if(storageError){alert("파일 삭제 실패: "+storageError.message);return}
+ const {error}=await supabaseClient.from("room_files").delete().eq("id",id).eq("room_id",currentRoom.id);
+ if(error){alert("자료 정보 삭제 실패: "+error.message);return}
+ await renderFiles();refreshRoomStats();
+}
+async function renderFiles(){
  if(!currentRoom){el("filesList").innerHTML='<div class="empty-room">방을 먼저 선택하세요.</div>';return}
- const arr=readData("files");
- el("filesList").innerHTML=arr.length?arr.map(x=>'<div class="data-item"><div class="data-main"><strong>'+escapeHtml(x.name)+'</strong><span>'+formatBytes(x.size)+' · '+new Date(x.createdAt).toLocaleString("ko-KR")+'</span></div><div class="data-actions"><button class="secondary-btn" onclick="downloadFile(\''+x.id+'\')">다운로드</button><button class="danger-btn" onclick="deleteFile(\''+x.id+'\')">삭제</button></div></div>').join(""):'<div class="empty-room">공유한 자료가 없습니다.</div>';
+ const {data,error}=await supabaseClient.from("room_files").select("id,name,size,type,created_at,user_id").eq("room_id",currentRoom.id).order("created_at",{ascending:false});
+ if(error){el("filesList").innerHTML='<div class="empty-room">자료를 불러오지 못했습니다.<br>'+escapeHtml(error.message)+'</div>';return}
+ const arr=data||[];
+ el("filesList").innerHTML=arr.length?arr.map(x=>'<div class="data-item"><div class="data-main"><strong>'+escapeHtml(x.name)+'</strong><span>'+formatBytes(x.size)+' · '+new Date(x.created_at).toLocaleString("ko-KR")+'</span></div><div class="data-actions"><button class="secondary-btn" onclick="downloadFile(\\''+x.id+'\\')">다운로드</button><button class="danger-btn" onclick="deleteFile(\\''+x.id+'\\')">삭제</button></div></div>').join(""):'<div class="empty-room">공유한 자료가 없습니다.</div>';
 }
 function formatBytes(n){if(n<1024)return n+" B";if(n<1024*1024)return (n/1024).toFixed(1)+" KB";return (n/1024/1024).toFixed(1)+" MB"}
-
 
 let chatChannel=null;
 async function loadChatMessages(){
