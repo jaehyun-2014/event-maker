@@ -1,7 +1,21 @@
 -- EVENT MAKER Supabase DB fix
--- Supabase SQL Editor에서 한 번 실행하세요.
+-- Supabase SQL Editor에서 이 파일 전체를 한 번 실행하세요.
 
-create extension if not exists pgcrypto;
+-- Supabase에서는 pgcrypto 함수가 extensions 스키마에 설치되는 경우가 많습니다.
+create schema if not exists extensions;
+do $$
+begin
+  if exists (select 1 from pg_extension where extname = 'pgcrypto') then
+    begin
+      alter extension pgcrypto set schema extensions;
+    exception when others then
+      null;
+    end;
+  else
+    create extension pgcrypto with schema extensions;
+  end if;
+end
+$$;
 
 alter table public.rooms
   add column if not exists description text default '',
@@ -41,7 +55,7 @@ drop function if exists public.create_room(text,text,text);
 create or replace function public.create_room(
   room_name text, room_description text, room_password text
 )
-returns uuid language plpgsql security definer set search_path = public
+returns uuid language plpgsql security definer set search_path = public, extensions
 as $$
 declare
   new_room_id uuid;
@@ -51,7 +65,7 @@ begin
   if trim(coalesce(room_name,'')) = '' then raise exception '방 이름을 입력해주세요.'; end if;
   if coalesce(room_password,'') = '' then raise exception '방 비밀번호를 입력해주세요.'; end if;
 
-  hashed_password := crypt(room_password, gen_salt('bf'));
+  hashed_password := extensions.crypt(room_password, extensions.gen_salt('bf'));
 
   insert into public.rooms (name, description, password_hash, created_by, created_at)
   values (trim(room_name), coalesce(room_description,''), hashed_password, auth.uid(), now())
@@ -69,9 +83,10 @@ drop function if exists public.join_room(uuid,text);
 create or replace function public.join_room(
   target_room uuid, room_password text
 )
-returns boolean language plpgsql security definer set search_path = public
+returns boolean language plpgsql security definer set search_path = public, extensions
 as $$
-declare stored_password text;
+declare
+  stored_password text;
 begin
   if auth.uid() is null then raise exception '로그인이 필요합니다.'; end if;
 
@@ -80,7 +95,7 @@ begin
 
   if stored_password is null or stored_password = '' then return false; end if;
 
-  if stored_password = crypt(room_password, stored_password) then
+  if stored_password = extensions.crypt(room_password, stored_password) then
     insert into public.room_members (room_id, user_id, role)
     values (target_room, auth.uid(), 'member')
     on conflict (room_id, user_id) do nothing;
