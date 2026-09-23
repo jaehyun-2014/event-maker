@@ -69,6 +69,51 @@ h1{margin:0 0 26px;font-size:38px}h2{margin:0}p{line-height:1.6}
 .status{font-size:13px;margin:10px 0;color:#666}.status.error{color:#b33b3b}.status.ok{color:#287a46}
 .login-message{color:#b33b3b;font-size:14px;margin-top:15px}
 @media(max-width:900px){.sidebar{position:static;width:100%;height:auto}.main{margin-left:0}.stats,.room-grid,.room-list,.room-settings{grid-template-columns:1fr}.account-box{align-items:flex-start;flex-direction:column}.calendar-table td{height:80px}}
+
+/* Mobile layout */
+@media (max-width: 700px){
+  body{font-size:15px;overflow-x:hidden}
+  .sidebar{position:relative;left:auto;top:auto;width:100%;height:auto;min-height:0;padding:18px 14px 14px;border-right:0;border-bottom:1px solid #292c32}
+  .logo{font-size:25px;padding:4px 10px 16px;letter-spacing:-.5px}
+  .nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+  .nav button{font-size:15px;padding:12px 13px;border-radius:10px;min-height:46px}
+  .main{margin-left:0;min-height:0;padding:20px 14px 40px}
+  .page{max-width:none;width:100%}
+  h1{font-size:28px;margin-bottom:20px}
+  h2{font-size:21px}
+  .account-box{padding:14px;display:block;margin-bottom:14px;border-radius:14px}
+  .account-left{display:flex;align-items:center;gap:6px;margin-bottom:10px}
+  .account-left strong{font-size:15px;word-break:break-all}
+  .nickname-input{width:100%;margin-top:8px}
+  .account-box .secondary-btn{margin-top:8px;width:100%;padding:10px}
+  .account-box .status{margin-top:8px;white-space:normal}
+  .stats{grid-template-columns:1fr;gap:12px}
+  .stat-card{padding:20px}
+  .stat-card h2{font-size:20px;margin-bottom:16px}
+  .stat-number{font-size:34px}
+  .quick-grid,.room-settings{grid-template-columns:1fr!important}
+  .quick-card,.room-card,.room-list-card,.calendar-card,.tool-card{padding:18px;margin-bottom:14px;border-radius:14px}
+  .room-list{grid-template-columns:1fr}
+  .room-item{padding:17px}
+  .room-item h3{font-size:17px;padding-right:35px}
+  .room-menu-btn{right:9px;top:9px}
+  .room-menu{right:9px;top:45px}
+  .data-item{display:block;padding:13px}
+  .data-actions{margin-top:10px}
+  .data-actions button{width:100%}
+  .tool-head{display:block;margin-bottom:14px}
+  .tool-head button{width:100%;margin-top:10px}
+  .calendar-card{overflow-x:auto}
+  .calendar-table{min-width:600px}
+  .chat-card{max-width:none}
+  .chat-input-row{flex-direction:column}
+  .chat-input-row input,.chat-input-row button{width:100%}
+  .member-row{gap:8px;align-items:flex-start}
+  .member-remove{flex-shrink:0}
+  .login-box{width:calc(100% - 28px);max-width:none;margin:28px auto;padding:22px;border-radius:14px}
+  .login-box h1{font-size:28px}
+  .login-box button{width:100%;margin:4px 0}
+}
 </style>
 </head>
 <body>
